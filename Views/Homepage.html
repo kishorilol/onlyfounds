@@ -4,7 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Document</title>
-    <link rel="stylesheet" href="/Statics/CSS/homepage.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=IBM+Plex+Mono:wght@500;600&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/Statics/CSS/all.css">
 </head>
 <body>
     <header>
@@ -16,12 +18,77 @@
                 <button class="nav-button" onclick="window.location.href='Found.html'">Report Found</button>
                 <button class="nav-button" onclick="window.location.href='Messages.html'">Messages <span style="background: var(--lost); color:#fff; border-radius:9px; padding:1px 6px; font-size:0.68rem; margin-left:4px ">2</span></button>
             </nav>
+            <button class="nav-toggle" onclick="toggleNav()" aria-label="Menu">☰</button>
             <div class="search-wrap">
                 <span>🔍</span>
                 <input id="searchInput" type="text" placeholder="Search Item, Brand, Location...">
             </div>
-            <button class="post-btn">+ New Post</button>
+            <div class="auth-btns">
+                <a href="login.html" class="post-btn">Login</a>
+                <a href="signup.html" class="post-btn">Signup</a>
+            </div>
         </div>
     </header>
+    <div id="view-feed">
+        <div class="hero">
+            <div>
+                <h1>Lost it? <span class="strike">Gone forever.</span><br>Found it? Pin it here.</h1>
+                 <p>A community corkboard for everything that's gone missing and everything somebody found. Post it, filter it, claim it back.</p>
+            </div>
+            <div class="hero-stats">
+                <div class="stat-tag"><span class="num">1,204</span><span class="label">Lost posts</span></div>
+                <div class="stat-tag"><span class="num">968</span><span class="label">Found posts</span></div>
+                <div class="stat-tag"><span class="num">341</span><span class="label">Reunited</span></div>
+            </div>
+        </div>
+        <div class="layout">
+            <aside class="filters">
+            <div class="filters-tab">Filter Drawer</div>
+
+            <div class="filter-section">
+                <h4>Status</h4>
+                <div class="status-toggle" id="statusToggle">
+                    <button data-s="all" class="on">All</button>
+                    <button data-s="lost">Lost</button>
+                    <button data-s="found">Found</button>
+                </div>
+            </div>
+
+            <div class="filter-section">
+                <h4>Category</h4>
+                <div class="chip-row" id="categoryChips"></div>
+            </div>
+
+            <div class="filter-section">
+                <h4>Location</h4>
+                <input type="text" id="locationInput" placeholder="City or area…" style="width:100%;padding:8px 10px;border:1.5px solid var(--card-edge);border-radius:4px;background:var(--card);font-size:0.82rem;">
+            </div>
+
+            <div class="filter-section">
+                <h4>Date posted</h4>
+                <select id="dateSelect">
+                <option value="all">Any time</option>
+                <option value="today">Today</option>
+                <option value="week">Past 7 days</option>
+                <option value="month">Past 30 days</option>
+                </select>
+            </div>
+
+            <button class="clear-filters" id="clearFilters">Clear all filters</button>
+            </aside>
+
+            <main>
+            <div class="feed-head">
+                <div class="count" id="resultCount">— posts</div>
+                <select class="sort-select" id="sortSelect">
+                <option value="newest">Sort: Newest first</option>
+                <option value="oldest">Sort: Oldest first</option>
+                </select>
+            </div>
+            <div class="board" id="board"></div>
+            </main>
+        </div>
+    </div>
+<script src="Homepage.js"></script>
 </body>
 </html>
