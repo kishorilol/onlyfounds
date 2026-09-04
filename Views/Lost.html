@@ -4,7 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Document</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=IBM+Plex+Mono:wght@500;600&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/Statics/CSS/all.css">
+    <link rel="stylesheet" href="/Statics/CSS/Post.css">
+    <link rel="stylesheet" href="/Statics/CSS/Homepage.css">
 </head>
 <body>
     <header>
@@ -16,12 +20,51 @@
                 <button class="nav-button" onclick="window.location.href='Found.html'">Report Found</button>
                 <button class="nav-button" onclick="window.location.href='Messages.html'">Messages <span style="background: var(--lost); color:#fff; border-radius:9px; padding:1px 6px; font-size:0.68rem; margin-left:4px ">2</span></button>
             </nav>
-            <div class="search-wrap">
-                <span>🔍</span>
-                <input id="searchInput" type="text" placeholder="Search Item, Brand, Location...">
+            <button class="nav-toggle" onclick="toggleNav()" aria-label="Menu">☰</button>
+            <div class="auth-btns">
+                <a href="login.html" class="post-btn">Login</a>
+                <a href="signup.html" class="post-btn">Signup</a>
             </div>
-            <button class="post-btn">+ New Post</button>
         </div>
     </header>
+    <div class="post-view active" id="view-post-lost">
+        <form class="post-form" id="form-found" onsubmit="return submitPost(event,'lost')">
+            <h2>Report a Lost Item</h2>
+            <p class="sub">Fill out the tag below. The more detail, the faster someone can match it.</p>
+            <div class="field-row">
+                <div class="field"><label>Item name</label><input type="text" id="lostName" placeholder="e.g. Black leather wallet" oninput="updatePreview('lost')" required></div>
+                <div class="field"><label>Category</label>
+                    <select id="lostCategory" onchange="updatePreview('lost')">
+                        <option value="📱 Electronics">📱 Electronics</option>
+                        <option value="🔑 Keys">🔑 Keys</option>
+                        <option value="👜 Bag">👜 Bag</option>
+                        <option value="🐶 Pet">🐶 Pet</option>
+                        <option value="📄 Documents">📄 Documents</option>
+                        <option value="💍 Jewelry">💍 Jewelry</option>
+                        <option value="👕 Clothing">👕 Clothing</option>
+                        <option value="🚲 Bike">🚲 Bike</option>
+                        <option value="📦 Other">📦 Other</option>
+                    </select>
+                </div>
+            </div>
+            <div class="field-row">
+                <div class="field"><label>Last seen location</label><input type="text" id="lostLocation" placeholder="e.g. Thamel coffee shop" oninput="updatePreview('lost')" required></div>
+                <div class="field"><label>Date Lost</label><input type="date" id="lostDate" onchange="updatePreview('lost')" required></div>
+            </div>
+            <div class="field"><label>Description</label><textarea id="lostDesc" placeholder="Color, brand, distinguishing marks…" oninput="updatePreview('lost')"></textarea></div>
+            <div class="field-row">
+                <div class="field"><label>Contact info</label><input type="text" placeholder="Phone or email"></div>
+                <div class="field"><label>Reward (optional)</label><input type="text" placeholder="e.g. NPR 500"></div>
+            </div>
+            <div class="field"><label>Photo</label><div class="upload-box">📷 Drop a photo here or click to upload</div></div>
+            <button type="submit" class="submit-btn">Post to Lost board</button>
+        </form>
+        <div>
+            <div class="preview-label">Live tag preview</div>
+            <div class="board" style="grid-template-columns:1fr;"><div class="tag-card" id="previewLost" data-status="lost" style="--rot:2deg;"></div></div>
+        </div>
+    </div>
+<script src="/Statics/JS/all.js"></script>
+<script src="/Statics/JS/Post.js"></script>
 </body>
 </html>
