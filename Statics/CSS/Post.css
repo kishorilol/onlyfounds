@@ -139,3 +139,9 @@ footer{
 footer span{
     opacity: 0.6;
 }
+
+@media (max-width:880px){ 
+    .post-view.active{ 
+        grid-template-columns:1fr; 
+    }
+} 
