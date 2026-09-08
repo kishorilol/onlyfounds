@@ -1,3 +1,23 @@
+:root{
+   --board:#c7b48c;
+    --board-dark:#b6a179;
+    --ink:#2b2620;
+    --ink-soft:#5c5040;
+    --card:#f3ead7;
+    --card-edge:#e1d3ac;
+    --lost:#9c3b2e;
+    --lost-bg:#f0dad2;
+    --found:#3b6357;
+    --found-bg:#d9e5de;
+    --string:#8b7355;
+    --pin-gold:#b08d57;
+    --paper-white:#faf6ea;
+    --shadow: 2px 4px 10px rgba(43,38,32,0.28);
+    --font-display:'Special Elite', 'Courier New', monospace;
+    --font-body:'Inter', sans-serif;
+    --font-mono:'IBM Plex Mono', monospace;  
+}
+
 .hero{
     max-width:1240px; 
     margin:0 auto; 

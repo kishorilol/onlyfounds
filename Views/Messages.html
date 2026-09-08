@@ -3,8 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+    <title>Document</title>    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=IBM+Plex+Mono:wght@500;600&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/Statics/CSS/all.css">
+    <link rel="stylesheet" href="/Statics/CSS/Messages.css">
 </head>
 <body>
     <header>
@@ -17,8 +20,31 @@
                 <button class="nav-button active" onclick="window.location.href='Messages.html'">Messages <span style="background: var(--lost); color:#fff; border-radius:9px; padding:1px 6px; font-size:0.68rem; margin-left:4px ">2</span></button>
             </nav>
             <button class="nav-toggle" onclick="toggleNav()" aria-label="Menu">☰</button>
-            
+            <div class="auth-btns">
+                <a href="login.html" class="post-btn">Login</a>
+                <a href="signup.html" class="post-btn">Signup</a>
+            </div>
         </div>
     </header>
+    <div id="view-messages" class="active">
+    <h2>Messages</h2>
+    <div id="convoList"></div>
+    </div>
+    <div class="chat-overlay" id="chatOverlay">
+    <div class="chat-panel" id="chatPanel">
+        <div class="chat-head">
+        <div class="who"><strong id="chatWho">Item</strong><span id="chatSub">re: post</span></div>
+        <button class="chat-close" onclick="closeChat()">✕</button>
+        </div>
+        <div class="chat-thread" id="chatThread"></div>
+        <div class="chat-input-row">
+        <input type="text" id="chatInput" placeholder="Type a message…" onkeydown="if(event.key==='Enter'){sendMessage();}">
+        <button class="chat-send" onclick="sendMessage()">➤</button>
+        </div>
+    </div>
+    </div>
+    <script src="../Statics/JS/all.js"></script>
+    <script src="../Statics/JS/Chat.js"></script>
+    <script src="../Statics/JS/Messages.js"></script>
 </body>
 </html>

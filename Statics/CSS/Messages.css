@@ -1,0 +1,95 @@
+:root{
+   --board:#c7b48c;
+    --board-dark:#b6a179;
+    --ink:#2b2620;
+    --ink-soft:#5c5040;
+    --card:#f3ead7;
+    --card-edge:#e1d3ac;
+    --lost:#9c3b2e;
+    --lost-bg:#f0dad2;
+    --found:#3b6357;
+    --found-bg:#d9e5de;
+    --string:#8b7355;
+    --pin-gold:#b08d57;
+    --paper-white:#faf6ea;
+    --shadow: 2px 4px 10px rgba(43,38,32,0.28);
+    --font-display:'Special Elite', 'Courier New', monospace;
+    --font-body:'Inter', sans-serif;
+    --font-mono:'IBM Plex Mono', monospace;  
+}
+
+#view-messages{
+    display:none;
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 40px 24px 80px;
+}
+
+#view-messages.active{
+    display: block;
+}
+
+#view-messages h2{
+    font-family: var(--font-display);
+    font-size: 1.7rem;
+    margin-bottom: 18px;
+}
+
+.convo-row{
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    background:var(--paper-white);
+    border: 1.5px solid var(--card-edge);
+    border-radius: 6px;
+    padding: 14px 16px;
+    margin-bottom: 10px;
+    box-shadow: 1px 2px 4px rgba(43, 38, 32, 0.12);
+}
+
+.convo-icon{
+    font-size: 1.6rem;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--card);
+    border-radius: 50%;
+    border: 2px solid var(--ink);
+    flex-shrink: 0;
+}
+
+.convo-info{ 
+    flex:1; 
+    min-width:0; 
+}
+.convo-info .top{ 
+    display:flex; 
+    justify-content:space-between; 
+    gap:10px; 
+}
+.convo-info h4{ 
+    font-size:0.92rem; 
+}
+.convo-info .time{ 
+    font-family:var(--font-mono); 
+    font-size:0.7rem; 
+    color:#a89a7c; 
+    white-space:nowrap;
+}
+.convo-info p{ 
+    font-size:0.8rem; 
+    color:var(--ink-soft); 
+    white-space:nowrap; 
+    overflow:hidden; 
+    text-overflow:ellipsis; 
+    margin-top:2px;
+}
+.unread-dot{ 
+    width:9px; 
+    height:9px; 
+    border-radius:50%; 
+    background:var(--lost); 
+    flex-shrink:0;
+} 
