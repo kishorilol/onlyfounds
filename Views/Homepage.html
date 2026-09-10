@@ -8,6 +8,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=IBM+Plex+Mono:wght@500;600&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/Statics/CSS/all.css">
     <link rel="stylesheet" href="/Statics/CSS/Homepage.css">
+    <link rel="stylesheet" href="/Statics/CSS/Messages.css">
 </head>
 <body>
     <header>
@@ -90,6 +91,21 @@
             </main>
         </div>
     </div>
+    <div class="chat-overlay" id="chatOverlay">
+        <div class="chat-panel" id="chatPanel">
+            <div class="chat-head">
+                <div class="who"><strong id="chatWho">Item</strong><span id="chatSub">re: post</span></div>
+                <button class="chat-close" onclick="closeChat()">✕</button>
+            </div>
+            <div class="chat-thread" id="chatThread"></div>
+            <div class="chat-input-row">
+                <input type="text" id="chatInput" placeholder="Type a message…" onkeydown="if(event.key==='Enter'){sendMessage();}">
+                <button class="chat-send" onclick="sendMessage()">➤</button>
+            </div>
+        </div>
+    </div>
 <script src="/Statics/JS/all.js"></script>
+<script src="/Statics/JS/Feed.js"></script>
+<script src="/Statics/JS/Chat.js"></script>
 </body>
 </html>
