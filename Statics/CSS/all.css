@@ -12,7 +12,6 @@
     --string:#8b7355;
     --pin-gold:#b08d57;
     --paper-white:#faf6ea;
-    --shadow: 2px 4px 10px rgba(43,38,32,0.28);
     --font-display:'Special Elite', 'Courier New', monospace;
     --font-body:'Inter', sans-serif;
     --font-mono:'IBM Plex Mono', monospace;  
@@ -47,7 +46,6 @@ header{
     position:sticky;
     top:0;
     z-index: 50;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
     width: 100%;
 }
 
@@ -146,13 +144,11 @@ nav{
     border: 2px solid var(--ink);
     font-weight: 700;
     font-size: 0.88rem;
-    box-shadow: 2px 2px 0 var(--ink);
     transition:transform .12s ease;
 }
 
 .post-btn:hover{
     transform: translate(-1px,-1px);
-    box-shadow: 3px 3px 0 var(--ink);
 }
 
 .nav-toggle{

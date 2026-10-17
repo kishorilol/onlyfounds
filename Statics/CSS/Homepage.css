@@ -12,7 +12,6 @@
     --string:#8b7355;
     --pin-gold:#b08d57;
     --paper-white:#faf6ea;
-    --shadow: 2px 4px 10px rgba(43,38,32,0.28);
     --font-display:'Special Elite', 'Courier New', monospace;
     --font-body:'Inter', sans-serif;
     --font-mono:'IBM Plex Mono', monospace;  
@@ -63,7 +62,6 @@
     border-radius: 6px;
     padding: 12px 18px;
     text-align: center;
-    box-shadow: var(--shadow);
     transform: rotate(var(--r,-2deg));
 }
 
@@ -109,7 +107,6 @@
     background: var(--paper-white);
     border: 2px solid var(--ink);
     border-radius: 6px;
-    box-shadow: var(--shadow);
     position:sticky;
     top: 88px;
     overflow: hidden;
@@ -252,7 +249,6 @@ select, .date-inputs input{
     background:var(--card);
     border:1.5px solid var(--card-edge);
     border-radius:3px 16px 3px 3px;
-    box-shadow:var(--shadow);
     position:relative;
     padding:26px 16px 0;
     transform:rotate(var(--rot,0deg));
@@ -263,7 +259,6 @@ select, .date-inputs input{
 
 .tag-card:hover{ 
     transform:rotate(0deg) translateY(-4px); 
-    box-shadow:4px 8px 16px rgba(43,38,32,0.32); 
     z-index:2;
 }
 
