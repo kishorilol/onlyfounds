@@ -1,0 +1,1211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OnlyFounds — The community corkboard for lost &amp; found things</title>
+<meta name="description" content="Pin what you lost. Claim what you found. OnlyFounds is a community corkboard that reunites people with their things.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=IBM+Plex+Mono:wght@500;600&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --board:#c7b48c; --ink:#2b2620; --ink-soft:#5c5040;
+    --card:#f3ead7; --card-edge:#e1d3ac; --paper-white:#faf6ea;
+    --lost:#9c3b2e; --lost-bg:#f0dad2; --found:#3b6357; --found-bg:#d9e5de;
+    --shadow:2px 4px 10px rgba(43,38,32,0.28);
+    --font-display:'Special Elite','Courier New',monospace;
+    --font-body:'Inter',sans-serif;
+    --font-mono:'IBM Plex Mono',monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    font-family:var(--font-body); color:var(--ink);
+    background:
+      radial-gradient(ellipse at 20% 10%,rgba(255,255,255,0.10),transparent 40%),
+      repeating-linear-gradient(0deg,rgba(0,0,0,0.02) 0,rgba(0,0,0,0.02) 1px,transparent 1px,transparent 3px),
+      var(--board);
+  }
+  a{color:inherit}
+  button{font-family:inherit;cursor:pointer}
+  .wrap{max-width:1180px;margin:0 auto;padding:0 24px}
+
+  /* header */
+  header{background:var(--paper-white);border-bottom:3px solid var(--ink);box-shadow:0 2px 6px rgba(0,0,0,.15);position:sticky;top:0;z-index:50}
+  .nav{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 24px;max-width:100%;margin:0 auto}
+  .logo{display:flex;align-items:center;gap:10px;font-family:var(--font-display);font-size:1.5rem;text-decoration:none;white-space:nowrap}
+  .logo-badge{width:36px;height:36px;border-radius:50%;background:var(--ink);color:var(--paper-white);display:flex;align-items:center;justify-content:center;font-family:var(--font-mono);font-size:.75rem;font-weight:700;transform:rotate(-8deg);border:2px dashed var(--paper-white)}
+  .nav-links{display:flex;gap:26px;font-weight:600;font-size:.92rem}
+  .nav-links a{text-decoration:none;color:var(--ink-soft)}
+  .nav-links a:hover{color:var(--ink)}
+  .nav-actions{display:flex;gap:10px}
+  @media(max-width:760px){.nav-links{display:none}}
+
+  /* buttons */
+  .btn{display:inline-block;padding:11px 22px;border-radius:5px;border:2px solid var(--ink);font-weight:700;font-size:.92rem;text-decoration:none;text-align:center;background:transparent;color:var(--ink);transition:transform .12s ease,box-shadow .12s ease,background .15s ease,color .15s ease}
+  .btn:hover{background:var(--ink);color:var(--paper-white)}
+  .btn.solid{background:var(--lost);color:var(--paper-white)}
+  .btn.solid:hover{background:var(--lost);transform:translate(-1px,-1px)}
+  .btn.green{background:var(--found);color:var(--paper-white)}
+  .btn.green:hover{background:var(--found);transform:translate(-1px,-1px)}
+  .btn.big{padding:15px 30px;font-size:1rem}
+
+  /* hero */
+  .hero{display:grid;grid-template-columns:1.05fr 1fr;gap:48px;align-items:center;padding:72px 0 64px}
+  @media(max-width:900px){.hero{grid-template-columns:1fr;padding-top:44px;text-align:center}.hero p.lead{margin-left:auto;margin-right:auto}.cta-row,.trust{justify-content:center}}
+  .eyebrow{display:inline-block;font-family:var(--font-mono);font-size:.74rem;letter-spacing:.12em;text-transform:uppercase;border:2px solid var(--ink);padding:4px 10px;border-radius:3px;transform:rotate(-2deg);background:var(--card);margin-bottom:18px}
+  .hero h1{font-family:var(--font-display);font-size:clamp(2.5rem,6vw,4.4rem);line-height:1.04}
+  .hero h1 .strike{text-decoration:line-through;text-decoration-thickness:4px;color:var(--ink-soft);opacity:.5}
+  .hero h1 .mark{background:linear-gradient(transparent 58%,rgba(156,59,46,.35) 58%);padding:0 4px}
+  .hero p.lead{margin-top:20px;font-size:1.1rem;line-height:1.6;color:var(--ink-soft);max-width:480px}
+  .cta-row{display:flex;gap:14px;margin-top:30px;flex-wrap:wrap}
+  .trust{display:flex;gap:20px;margin-top:26px;font-size:.84rem;color:var(--ink-soft);flex-wrap:wrap}
+  .trust span::before{content:"✓ ";color:var(--found);font-weight:800}
+
+  /* corkboard mock */
+  .board{position:relative;height:440px}
+  @media(max-width:900px){.board{max-width:460px;margin:0 auto;width:100%}}
+  .note{position:absolute;background:var(--card);border:2px solid var(--ink);border-radius:3px 12px 3px 3px;box-shadow:var(--shadow);padding:16px 16px 14px;width:215px;transform:rotate(var(--r));left:var(--x);top:var(--y);transition:transform .25s ease}
+  .note:hover{transform:rotate(0) scale(1.04);z-index:5}
+  .note .pin{position:absolute;top:-8px;left:50%;margin-left:-8px;width:16px;height:16px;border-radius:50%;background:var(--lost);box-shadow:0 3px 4px rgba(0,0,0,.35),inset -2px -2px 3px rgba(0,0,0,.25),inset 2px 2px 2px rgba(255,255,255,.4)}
+  .note.f .pin{background:var(--found)}
+  .tag{display:inline-block;font-family:var(--font-display);font-size:.66rem;letter-spacing:.14em;padding:2px 8px;border:2px solid;border-radius:3px;text-transform:uppercase;color:var(--lost);border-color:var(--lost)}
+  .note.f .tag{color:var(--found);border-color:var(--found)}
+  .note .ico{font-size:2rem;display:block;margin:10px 0 4px}
+  .note h4{font-family:var(--font-display);font-size:1.08rem;line-height:1.2}
+  .note small{display:block;margin-top:6px;color:var(--ink-soft);font-size:.76rem;line-height:1.4}
+  .note .meta{font-family:var(--font-mono);font-size:.68rem;color:#a89a7c;margin-top:8px}
+  .stamp-big{position:absolute;right:6px;bottom:22px;font-family:var(--font-display);font-size:1.5rem;letter-spacing:.14em;color:var(--found);border:4px solid var(--found);padding:4px 14px;border-radius:5px;transform:rotate(-11deg);background:rgba(250,246,234,.75);z-index:6}
+
+  /* stats */
+  .stats{background:var(--ink);color:var(--paper-white);border-top:3px solid var(--ink);border-bottom:3px solid var(--ink)}
+  .stats .wrap{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;padding:30px 24px;text-align:center}
+  @media(max-width:700px){.stats .wrap{grid-template-columns:repeat(2,1fr)}}
+  .stats strong{display:block;font-family:var(--font-display);font-size:2.1rem}
+  .stats span{font-family:var(--font-mono);font-size:.74rem;letter-spacing:.06em;opacity:.7}
+
+  /* sections */
+  section.block{padding:80px 0}
+  .sec-head{text-align:center;max-width:560px;margin:0 auto 46px}
+  .sec-head h2{font-family:var(--font-display);font-size:clamp(1.8rem,4vw,2.6rem);line-height:1.12}
+  .sec-head p{margin-top:12px;color:var(--ink-soft);line-height:1.55}
+
+  .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:30px}
+  @media(max-width:820px){.steps{grid-template-columns:1fr;max-width:420px;margin:0 auto}}
+  .step{background:var(--paper-white);border:2px solid var(--ink);border-radius:3px 18px 3px 3px;box-shadow:var(--shadow);padding:34px 24px 26px;position:relative;transform:rotate(var(--r,0deg))}
+  .step:nth-child(1){--r:-.8deg}.step:nth-child(2){--r:.7deg}.step:nth-child(3){--r:-.4deg}
+  .step .pin{position:absolute;top:-9px;left:24px;width:18px;height:18px;border-radius:50%;background:#b08d57;box-shadow:0 3px 4px rgba(0,0,0,.35),inset -2px -2px 3px rgba(0,0,0,.25),inset 2px 2px 2px rgba(255,255,255,.4)}
+  .step .num{font-family:var(--font-mono);font-size:.74rem;color:#a89a7c;letter-spacing:.1em}
+  .step .ico{font-size:2.2rem;margin:8px 0}
+  .step h3{font-family:var(--font-display);font-size:1.3rem;margin-bottom:8px}
+  .step p{color:var(--ink-soft);font-size:.92rem;line-height:1.55}
+
+  .features{display:grid;grid-template-columns:repeat(2,1fr);gap:18px}
+  @media(max-width:700px){.features{grid-template-columns:1fr}}
+  .feat{display:flex;gap:16px;background:var(--card);border:2px solid var(--ink);border-radius:6px;padding:20px;box-shadow:var(--shadow)}
+  .feat .ico{font-size:1.8rem;flex-shrink:0}
+  .feat h3{font-size:1rem;margin-bottom:4px}
+  .feat p{font-size:.88rem;color:var(--ink-soft);line-height:1.5}
+
+  /* cta */
+  .cta{background:var(--paper-white);border:3px solid var(--ink);border-radius:4px 24px 4px 4px;box-shadow:var(--shadow);padding:56px 32px 0;text-align:center;position:relative;max-width:820px;margin:0 auto 90px}
+  .cta .pin{position:absolute;top:-10px;left:50%;margin-left:-10px;width:20px;height:20px;border-radius:50%;background:var(--lost);box-shadow:0 3px 4px rgba(0,0,0,.35),inset -2px -2px 3px rgba(0,0,0,.25),inset 2px 2px 2px rgba(255,255,255,.4)}
+  .cta h2{font-family:var(--font-display);font-size:clamp(1.8rem,4vw,2.6rem);line-height:1.12}
+  .cta p{color:var(--ink-soft);margin:12px auto 28px;max-width:440px;line-height:1.55}
+  .cta .cta-row{justify-content:center; margin-bottom: 30px;}
+  .cta .perf{border-top:2px dashed var(--card-edge);margin:40px -32px 0;padding:16px 32px;font-size:.86rem;color:var(--ink-soft)}
+  .cta .perf a{font-weight:700;text-underline-offset:3px}
+
+  :focus-visible{outline:3px solid var(--found);outline-offset:2px}
+  @media(prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
+  /* LOGIN MODAL */
+
+
+/* ==============================
+   LOGIN POPUP OVERLAY
+============================== */
+
+.login-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(43, 38, 32, 0.65);
+
+    display: none;
+    justify-content: center;
+    align-items: center;
+
+    padding: 20px;
+    z-index: 1000;
+
+    backdrop-filter: blur(3px);
+}
+
+.login-overlay.active {
+    display: flex;
+}
+
+/* ==============================
+   POPUP CONTAINER
+============================== */
+
+.login-popup {
+    position: relative;
+    width: 100%;
+    max-width: 440px;
+
+    animation: loginPopup .25s ease;
+}
+
+/* ==============================
+   AUTH CARD
+============================== */
+
+.login-popup .auth-card {
+    width: 100%;
+    box-sizing: border-box;
+
+    background: var(--paper-white);
+    border: 2px solid var(--ink);
+    border-radius: 15px 18px 15px 3px;
+    padding: 38px 32px 0;
+    position: relative;
+    transform: rotate(0.6deg);
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+/* PIN */
+
+.login-popup .pin {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+
+    position: absolute;
+    top: -9px;
+    left: 28px;
+
+    background: var(--lost);
+
+    box-shadow:
+        0 3px 4px rgba(0,0,0,0.35),
+        inset -2px -2px 3px rgba(0,0,0,0.25),
+        inset 2px 2px 2px rgba(255,255,255,0.4);
+}
+
+/* MEMBERS STAMP */
+
+.login-popup .stamp {
+    position: absolute;
+    top: 18px;
+    right: 16px;
+
+    font-family: var(--font-display);
+    font-size: 0.7rem;
+    letter-spacing: 0.14em;
+
+    padding: 3px 9px;
+
+    border: 2px solid var(--lost);
+    color: var(--lost);
+    border-radius: 3px;
+
+    transform: rotate(8deg);
+    text-transform: uppercase;
+    opacity: 0.9;
+}
+
+/* HEADING */
+
+.login-popup .auth-card h2 {
+    font-family: var(--font-display);
+    font-size: 1.7rem;
+    margin-bottom: 6px;
+}
+
+.login-popup .auth-card .sub {
+    color: var(--ink-soft);
+    font-size: 0.9rem;
+    margin-bottom: 24px;
+}
+
+/* ==============================
+   INPUT FIELDS
+============================== */
+
+.login-popup .field {
+    margin-bottom: 16px;
+}
+
+.login-popup .field label {
+    display: block;
+
+    font-size: 0.78rem;
+    font-weight: 700;
+
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+
+    color: var(--ink-soft);
+    margin-bottom: 6px;
+}
+
+.login-popup .field input[type="email"],
+.login-popup .field input[type="password"],
+.login-popup .field input[type="text"] {
+    width: 100%;
+    box-sizing: border-box;
+
+    padding: 11px 12px;
+
+    border: 1.5px solid var(--card-edge);
+    border-radius: 4px;
+
+    font-family: var(--font-body);
+    font-size: 0.92rem;
+
+    background: var(--card);
+    color: var(--ink);
+
+    transition: border-color .15s ease,
+                box-shadow .15s ease;
+}
+
+.login-popup .field input:focus {
+    outline: none;
+    border-color: var(--ink);
+    box-shadow: 2px 2px 0 var(--ink);
+}
+
+/* INVALID FIELD */
+
+.login-popup .field.invalid input {
+    border-color: var(--lost);
+    background: var(--lost-bg);
+}
+
+.login-popup .field-error {
+    display: none;
+
+    color: var(--lost);
+    font-size: 0.76rem;
+    font-weight: 600;
+
+    margin-top: 5px;
+}
+
+.login-popup .field.invalid .field-error {
+    display: block;
+}
+
+/* ==============================
+   PASSWORD TOGGLE
+============================== */
+
+.login-popup .pw-wrap {
+    position: relative;
+}
+
+.login-popup .pw-wrap input {
+    padding-right: 64px !important;
+}
+
+.login-popup .pw-toggle {
+    position: absolute;
+
+    right: 6px;
+    top: 50%;
+    transform: translateY(-50%);
+
+    background: transparent;
+    border: none;
+
+    padding: 6px 8px;
+
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    font-weight: 600;
+
+    color: var(--ink-soft);
+}
+
+.login-popup .pw-toggle:hover {
+    color: var(--ink);
+}
+
+/* ==============================
+   REMEMBER ME
+============================== */
+
+.login-popup .row-between {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    margin: 2px 0 20px;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.login-popup .check {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    font-size: 0.84rem;
+    color: var(--ink-soft);
+
+    cursor: pointer;
+}
+
+.login-popup .check input {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--ink);
+}
+
+/* LINKS */
+
+.login-popup .link {
+    font-size: 0.84rem;
+    font-weight: 600;
+
+    color: var(--lost);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+/* ==============================
+   ALERT MESSAGE
+============================== */
+
+.login-popup .alert {
+    display: none;
+
+    background: var(--lost-bg);
+    border: 1.5px solid var(--lost);
+    color: var(--lost);
+
+    border-radius: 4px;
+    padding: 10px 12px;
+
+    font-size: 0.84rem;
+    font-weight: 600;
+
+    margin-bottom: 16px;
+}
+
+.login-popup .alert.show {
+    display: block;
+}
+
+/* ==============================
+   LOGIN BUTTON
+============================== */
+
+.login-popup .submit-btn {
+    width: 100%;
+
+    padding: 13px 26px;
+
+    border-radius: 5px;
+    border: 2px solid var(--ink);
+
+    background: var(--lost);
+    color: var(--paper-white);
+
+    font-weight: 700;
+    font-size: 0.95rem;
+
+    box-shadow: 2px 2px 0 var(--ink);
+
+    transition: transform .12s ease,
+                box-shadow .12s ease;
+}
+
+.login-popup .submit-btn:hover {
+    transform: translate(-1px, -1px);
+    box-shadow: 3px 3px 0 var(--ink);
+}
+
+.login-popup .submit-btn:active {
+    transform: translate(1px, 1px);
+    box-shadow: 1px 1px 0 var(--ink);
+}
+
+.login-popup .submit-btn:disabled {
+    opacity: 0.7;
+    cursor: wait;
+}
+
+/* ==============================
+   PERFORATED FOOTER
+============================== */
+
+.login-popup .perforation {
+    border-top: 2px dashed var(--card-edge);
+
+    margin: 28px -32px 0;
+    padding: 16px 32px 18px;
+
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    gap: 10px;
+    flex-wrap: wrap;
+
+    font-size: 0.88rem;
+    color: var(--ink-soft);
+}
+
+.login-popup .perforation a {
+    font-weight: 700;
+    color: var(--ink);
+    text-underline-offset: 3px;
+}
+
+/* ==============================
+   CLOSE BUTTON
+============================== */
+
+.modal-close {
+    position: absolute;
+    top: -14px;
+    right: -12px;
+
+    width: 35px;
+    height: 35px;
+
+    border: 2px solid var(--ink);
+    border-radius: 50%;
+
+    background: var(--lost);
+    color: white;
+
+    font-size: 24px;
+    font-weight: bold;
+
+    z-index: 10;
+    cursor: pointer;
+
+    transition: transform .15s ease;
+}
+
+.modal-close:hover {
+    transform: rotate(90deg);
+}
+
+/* ==============================
+   POPUP ANIMATION
+============================== */
+
+@keyframes loginPopup {
+    from {
+        opacity: 0;
+        transform: translateY(20px) scale(0.96);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* ==============================
+   RESPONSIVE DESIGN
+============================== */
+
+@media (max-width: 480px) {
+
+    .login-overlay {
+        padding: 18px;
+    }
+
+    .login-popup {
+        max-width: 100%;
+    }
+
+    .login-popup .auth-card {
+        padding: 32px 20px 0;
+    }
+
+    .login-popup .perforation {
+        margin-left: -20px;
+        margin-right: -20px;
+
+        padding: 16px 20px;
+    }
+
+}
+
+/* REDUCED MOTION */
+
+@media (prefers-reduced-motion: reduce) {
+    .login-popup,
+    .login-popup * {
+        animation: none !important;
+        transition: none !important;
+    }
+}
+
+/* REGISTER POPUP ADJUSTMENTS */
+
+#registerModal .auth-card {
+    max-height: 90vh;
+    overflow-y: auto;
+    padding-top: 38px;
+}
+
+#registerModal .auth-card .sub {
+    margin-bottom: 20px;
+}
+
+#registerModal .field {
+    margin-bottom: 13px;
+}
+
+#registerModal .perforation {
+    margin-top: 22px;
+}
+
+/* MOBILE */
+@media (max-width: 480px) {
+
+    #registerModal .auth-card {
+        padding: 32px 20px 0;
+    }
+
+    #registerModal .perforation {
+        margin-left: -20px;
+        margin-right: -20px;
+        padding: 16px 20px;
+    }
+
+}
+/* validation css */
+/* Hide field errors by default */
+.field-error {
+    display: none;
+    color: #9c3b2e;
+    font-size: 12px;
+    margin-top: 5px;
+}
+
+/* Show error when field is invalid */
+.field.invalid .field-error {
+    display: block;
+}
+
+.field.invalid input {
+    border-color: #9c3b2e;
+    background-color: #fff4f1;
+}
+
+/* General form alert */
+.alert {
+    display: none;
+    background: #f0dad2;
+    color: #9c3b2e;
+    padding: 10px 12px;
+    border-radius: 5px;
+    margin-bottom: 15px;
+    font-size: 13px;
+}
+
+.alert.show {
+    display: block;
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="nav">
+    <a class="logo" href="index.html"><span class="logo-badge">OF</span> OnlyFounds</a>
+    <nav class="nav-links" aria-label="Sections">
+      <a href="#how">How it works</a>
+      <a href="#why">Why OnlyFounds</a>
+      <a href="#join">Join</a>
+    </nav>
+    <div class="nav-actions" id="navActions">
+      <a class="btn login-trigger" href="#">Log in</a>
+      <a class="btn solid register-trigger" href="#">Sign up</a>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="wrap hero">
+    <div>
+      <span class="eyebrow">Community corkboard</span>
+      <h1>Lost it? <span class="strike">Forget it.</span><br><span class="mark">Pin it.</span></h1>
+      <p class="lead">OnlyFounds is a public board where people post what they've lost and what they've found, so the right things get back to the right hands.</p>
+      <div class="cta-row" id="heroCta">
+        <a class="btn solid big register-trigger" href="#">Create free account</a>
+        <a class="btn big login-trigger" href="#">Log in</a>
+      </div>
+      <div class="trust"><span>Free to join</span><span>Chat inside the site</span><span>Meet in public places</span></div>
+    </div>
+
+    <div class="board" aria-hidden="true">
+      <div class="note" style="--r:-6deg;--x:0;--y:20px"><div class="pin"></div><span class="tag">Lost</span><span class="ico">🔑</span><h4>Keys with blue tag</h4><small>Dropped near the bus park. Three keys and a small bottle opener.</small><div class="meta">Posted 2h ago</div></div>
+      <div class="note f" style="--r:4deg;--x:200px;--y:0"><div class="pin"></div><span class="tag">Found</span><span class="ico">🎒</span><h4>Black school bag</h4><small>Left on a café bench. Notebooks inside, no ID.</small><div class="meta">Posted 5h ago</div></div>
+      <div class="note" style="--r:3deg;--x:20px;--y:230px"><div class="pin"></div><span class="tag">Lost</span><span class="ico">📱</span><h4>Phone, cracked case</h4><small>Lost on the way home. Lock screen is a puppy.</small><div class="meta">Posted yesterday</div></div>
+      <div class="note f" style="--r:-4deg;--x:215px;--y:215px"><div class="pin"></div><span class="tag">Found</span><span class="ico">🧣</span><h4>Grey wool scarf</h4><small>Found at the park gate. Looks hand-knitted.</small><div class="meta">Posted 1d ago</div></div>
+      <div class="stamp-big">REUNITED</div>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="wrap">
+      <div><strong data-count="341">341</strong><span>ITEMS REUNITED</span></div>
+      <div><strong data-count="2172">2,172</strong><span>POSTS ON THE BOARD</span></div>
+      <div><strong>24h</strong><span>AVERAGE FIRST REPLY</span></div>
+      <div><strong>Free</strong><span>ALWAYS</span></div>
+    </div>
+  </div>
+
+  <section class="block" id="how">
+    <div class="wrap">
+      <div class="sec-head"><h2>Three steps back to your stuff</h2><p>No forms from the 90s. Post, get matched, hand it over.</p></div>
+      <div class="steps">
+        <div class="step"><div class="pin"></div><div class="num">STEP 01</div><div class="ico">📌</div><h3>Pin a post</h3><p>Say what you lost or found, add a photo and where it happened. It goes straight on the board.</p></div>
+        <div class="step"><div class="pin"></div><div class="num">STEP 02</div><div class="ico">💬</div><h3>Message the match</h3><p>Chat with the other person inside OnlyFounds. Your phone number stays private unless you share it.</p></div>
+        <div class="step"><div class="pin"></div><div class="num">STEP 03</div><div class="ico">🤝</div><h3>Meet and reunite</h3><p>Pick a public spot, hand it back, and mark the post as reunited for the rest of the community.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="block" id="why" style="padding-top:0">
+    <div class="wrap">
+      <div class="sec-head"><h2>Built for neighbors</h2><p>A small, friendly board that works because people look out for each other.</p></div>
+      <div class="features">
+        <div class="feat"><span class="ico">🔍</span><div><h3>Search by item and place</h3><p>Filter lost and found posts so you see only what's near you.</p></div></div>
+        <div class="feat"><span class="ico">🔒</span><div><h3>Private by default</h3><p>Members see your name only. Contact details stay hidden.</p></div></div>
+        <div class="feat"><span class="ico">📷</span><div><h3>Photo-first posts</h3><p>A clear picture makes it easy to say "that's mine" in seconds.</p></div></div>
+        <div class="feat"><span class="ico">✅</span><div><h3>Mark as reunited</h3><p>Close the loop so the board stays clean and trustworthy.</p></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="join">
+    <div class="wrap">
+      <div class="cta">
+        <div class="pin"></div>
+        <h2>Someone may have your thing right now.</h2>
+        <p>Join the board in under a minute and start looking, or post what you found.</p>
+        <div class="cta-row" id="ctaRow">
+          <a class="btn green big register-trigger" href="#">Sign up free</a>
+          <a class="btn big login-trigger" href="#">I already have an account</a>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+<!-- LOGIN MODAL -->
+<div class="login-overlay" id="loginModal">
+
+    <div class="login-popup">
+
+        <button class="modal-close" id="closeLogin"
+                type="button" aria-label="Close">
+            &times;
+        </button>
+
+        <section class="auth-card">
+            <div class="stamp">Members</div>
+
+            <h2>Login</h2>
+
+            <p class="sub">
+                Welcome back, Enter your detail and continue
+            </p>
+
+            <div class="alert" id="formAlert" role="alert"></div>
+
+            <form id="loginForm" novalidate>
+
+                <div class="field" id="f-email">
+                    <label for="email">Email</label>
+
+                    <input type="email"
+                           id="email"
+                           autocomplete="email"
+                           placeholder="you@example.com">
+
+                    <div class="field-error">
+                        Enter a valid email address
+                    </div>
+                </div>
+
+                <div class="field" id="f-password">
+
+                    <label for="password">Password</label>
+
+                    <div class="pw-wrap">
+
+                        <input type="password"
+                               id="password"
+                               autocomplete="current-password"
+                               placeholder="Your password">
+
+                        <button type="button"
+                                class="pw-toggle"
+                                id="pwToggle">
+                            Show
+                        </button>
+
+                    </div>
+
+                    <div class="field-error">
+                        Enter your password.
+                    </div>
+
+                </div>
+
+                <div class="row-between">
+
+                    <label class="check">
+                        <input type="checkbox" id="remember">
+                        Keep me logged in
+                    </label>
+
+                    <a class="link" href="forgot.html"></a>
+
+                </div>
+
+                <button class="submit-btn"
+                        type="submit"
+                        id="submitBtn">
+                    Log in
+                </button>
+
+            </form>
+
+            <div class="perforation">
+
+                <span>
+                    New Here?
+                    <a class="register-trigger" href="#">Create an account</a>
+                </span>
+
+            </div>
+
+        </section>
+
+    </div>
+
+</div>
+
+<!-- REGISTER MODAL -->
+<div class="login-overlay" id="registerModal">
+
+    <div class="login-popup">
+
+        <button class="modal-close"
+                id="closeRegister"
+                type="button"
+                aria-label="Close">
+            &times;
+        </button>
+
+        <section class="auth-card">
+            <div class="stamp">New Member</div>
+
+            <h2>Create Account</h2>
+
+            <p class="sub">
+                Join OnlyFounds and help reunite lost things.
+            </p>
+
+            <div class="alert" id="registerAlert" role="alert"></div>
+
+            <form id="registerForm" novalidate>
+
+                <!-- FULL NAME -->
+                <div class="field" id="r-name">
+
+                    <label for="regName">Full Name</label>
+
+                    <input type="text"
+                           id="regName"
+                           autocomplete="name"
+                           placeholder="Your full name">
+
+                    <div class="field-error">
+                        Enter your full name.
+                    </div>
+
+                </div>
+
+                <!-- EMAIL -->
+                <div class="field" id="r-email">
+
+                    <label for="regEmail">Email</label>
+
+                    <input type="email"
+                           id="regEmail"
+                           autocomplete="email"
+                           placeholder="you@example.com">
+
+                    <div class="field-error">
+                        Enter a valid email address.
+                    </div>
+
+                </div>
+
+                <!-- PASSWORD -->
+                <div class="field" id="r-password">
+
+                    <label for="regPassword">Password</label>
+
+                    <div class="pw-wrap">
+
+                        <input type="password"
+                               id="regPassword"
+                               autocomplete="new-password"
+                               placeholder="Create a password">
+
+                        <button type="button"
+                                class="pw-toggle"
+                                id="regPwToggle">
+                            Show
+                        </button>
+
+                    </div>
+
+                    <div class="field-error">
+                        Password must be at least 8 characters.
+                    </div>
+
+                </div>
+
+                <!-- CONFIRM PASSWORD -->
+                <div class="field" id="r-confirm">
+
+                    <label for="regConfirm">Confirm Password</label>
+
+                    <div class="pw-wrap">
+
+                        <input type="password"
+                               id="regConfirm"
+                               autocomplete="new-password"
+                               placeholder="Confirm your password">
+
+                        <button type="button"
+                                class="pw-toggle"
+                                id="regConfirmToggle">
+                            Show
+                        </button>
+
+                    </div>
+
+                    <div class="field-error">
+                        Passwords do not match.
+                    </div>
+
+                </div>
+
+                <!-- SUBMIT -->
+                <button class="submit-btn"
+                        type="submit"
+                        id="registerBtn">
+                    Create Account
+                </button>
+
+            </form>
+
+            <!-- FOOTER -->
+            <div class="perforation">
+
+                <span>
+                    Already a member?
+                    <a href="#" class="switch-to-login login-trigger">
+                        Log in
+                    </a>
+                </span>
+
+            </div>
+
+        </section>
+
+    </div>
+
+</div>
+
+<script>
+/* If the visitor is already logged in, swap the login/sign-up buttons for board/account links. */
+(function(){
+  let s = null;
+  try { s = JSON.parse(sessionStorage.getItem('of_session')) || JSON.parse(localStorage.getItem('of_session')); } catch(e){}
+  if(!s) return;
+  document.getElementById('navActions').innerHTML =
+    '<a class="btn" href="account.html">My account</a><a class="btn solid" href="onlyfounds-corkboard.html">Open board</a>';
+  document.getElementById('heroCta').innerHTML =
+    '<a class="btn solid big" href="onlyfounds-corkboard.html">Open the board</a><a class="btn big" href="account.html">My account</a>';
+  document.getElementById('ctaRow').innerHTML =
+    '<a class="btn green big" href="onlyfounds-corkboard.html">Open the board</a>';
+})();
+
+// ==============================
+// LOGIN AND REGISTER MODALS
+// ==============================
+
+const loginModal = document.getElementById("loginModal");
+const registerModal = document.getElementById("registerModal");
+
+const closeLogin = document.getElementById("closeLogin");
+const closeRegister = document.getElementById("closeRegister");
+
+
+// OPEN MODAL
+function openModal(modal) {
+
+    loginModal.classList.remove("active");
+    registerModal.classList.remove("active");
+
+    modal.classList.add("active");
+
+    document.body.style.overflow = "hidden";
+}
+
+
+// CLOSE MODALS
+function closeModals() {
+
+    loginModal.classList.remove("active");
+    registerModal.classList.remove("active");
+
+    document.body.style.overflow = "";
+
+}
+
+
+// LOGIN BUTTONS
+document.querySelectorAll(".login-trigger").forEach(button => {
+
+    button.addEventListener("click", function(e) {
+
+        e.preventDefault();
+        openModal(loginModal);
+
+    });
+
+});
+
+
+// REGISTER BUTTONS
+document.querySelectorAll(".register-trigger").forEach(button => {
+
+    button.addEventListener("click", function(e) {
+
+        e.preventDefault();
+        openModal(registerModal);
+
+    });
+
+});
+
+
+// CLOSE BUTTONS
+closeLogin.addEventListener("click", closeModals);
+closeRegister.addEventListener("click", closeModals);
+
+
+// CLICK OUTSIDE POPUP
+[loginModal, registerModal].forEach(modal => {
+
+    modal.addEventListener("click", function(e) {
+
+        if (e.target === modal) {
+            closeModals();
+        }
+
+    });
+
+});
+
+
+// ESCAPE KEY
+document.addEventListener("keydown", function(e) {
+
+    if (e.key === "Escape") {
+        closeModals();
+    }
+
+});
+
+
+// SWITCH REGISTER TO LOGIN
+document.querySelectorAll(".switch-to-login").forEach(link => {
+
+    link.addEventListener("click", function(e) {
+
+        e.preventDefault();
+        openModal(loginModal);
+
+    });
+
+});
+
+
+// SWITCH LOGIN TO REGISTER
+document.querySelectorAll("#loginModal .perforation a").forEach(link => {
+
+    link.addEventListener("click", function(e) {
+
+        e.preventDefault();
+        openModal(registerModal);
+
+    });
+
+});
+// ==============================
+// PASSWORD SHOW / HIDE
+// ==============================
+
+function setupPasswordToggle(inputId, buttonId) {
+
+    const input = document.getElementById(inputId);
+    const button = document.getElementById(buttonId);
+
+    if (!input || !button) return;
+
+    button.addEventListener("click", function() {
+
+        const isHidden = input.type === "password";
+
+        input.type = isHidden ? "text" : "password";
+
+        button.textContent = isHidden ? "Hide" : "Show";
+
+        button.setAttribute(
+            "aria-label",
+            isHidden ? "Hide password" : "Show password"
+        );
+
+    });
+
+}
+
+
+// LOGIN PASSWORD
+setupPasswordToggle("password", "pwToggle");
+
+// REGISTER PASSWORD
+setupPasswordToggle("regPassword", "regPwToggle");
+
+// REGISTER CONFIRM PASSWORD
+setupPasswordToggle("regConfirm", "regConfirmToggle");
+
+const loginForm = document.getElementById("loginForm");
+
+loginForm.addEventListener("submit", function (e) {
+    e.preventDefault();
+
+    const email = document.getElementById("email");
+    const password = document.getElementById("password");
+
+    const emailField = document.getElementById("f-email");
+    const passwordField = document.getElementById("f-password");
+
+    const alertBox = document.getElementById("formAlert");
+
+    let isValid = true;
+
+    // Clear previous errors
+    emailField.classList.remove("invalid");
+    passwordField.classList.remove("invalid");
+    alertBox.classList.remove("show");
+
+    // Email validation
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (email.value.trim() === "" || !emailPattern.test(email.value.trim())) {
+        emailField.classList.add("invalid");
+        isValid = false;
+    }
+
+    // Password validation
+    if (password.value.trim() === "") {
+        passwordField.classList.add("invalid");
+        isValid = false;
+    }
+
+    if (!isValid) {
+        alertBox.textContent = "Please correct the highlighted fields.";
+        alertBox.classList.add("show");
+        return;
+    }
+
+    // Continue with your login API request here
+    console.log("Login form is valid");
+});
+
+const registerForm = document.getElementById("registerForm");
+
+registerForm.addEventListener("submit", function (e) {
+    e.preventDefault();
+
+    const name = document.getElementById("regName");
+    const email = document.getElementById("regEmail");
+    const password = document.getElementById("regPassword");
+    const confirmPassword = document.getElementById("regConfirm");
+
+    const nameField = document.getElementById("r-name");
+    const emailField = document.getElementById("r-email");
+    const passwordField = document.getElementById("r-password");
+    const confirmField = document.getElementById("r-confirm");
+
+    const alertBox = document.getElementById("registerAlert");
+
+    let isValid = true;
+
+    // Clear previous errors
+    [nameField, emailField, passwordField, confirmField]
+        .forEach(field => field.classList.remove("invalid"));
+
+    alertBox.classList.remove("show");
+
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    // Name validation
+    if (name.value.trim() === "") {
+        nameField.classList.add("invalid");
+        isValid = false;
+    }
+
+    // Email validation
+    if (!emailPattern.test(email.value.trim())) {
+        emailField.classList.add("invalid");
+        isValid = false;
+    }
+
+    // Password validation
+    if (password.value.length < 8) {
+        passwordField.classList.add("invalid");
+        isValid = false;
+    }
+
+    // Confirm password validation
+    if (
+        confirmPassword.value === "" ||
+        confirmPassword.value !== password.value
+    ) {
+        confirmField.classList.add("invalid");
+        isValid = false;
+    }
+
+    if (!isValid) {
+        alertBox.textContent = "Please correct the highlighted fields.";
+        alertBox.classList.add("show");
+        return;
+    }
+
+    // Continue with your registration API request here
+    console.log("Registration form is valid");
+});
+</script>
+</body>
+</html>
