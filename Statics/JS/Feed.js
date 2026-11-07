@@ -1,134 +1,1034 @@
-const CATEGORIES = ["📱 Electronics","🔑 Keys","👜 Bag","🐶 Pet","📄 Documents","💍 Jewelry","👕 Clothing","🚲 Bike","📦 Other"];
+const API_BASE_URL = "http://127.0.0.1:8000";
 
-const POSTS = [
-  {id:"LF-2291",status:"lost",name:"Black leather wallet",cat:"👜 Bag",loc:"Ratna Park, Kathmandu",date:"2026-08-14",desc:"Brown stitching, has a bus pass and student ID inside."},
-  {id:"LF-2288",status:"found",name:"Silver house keys",cat:"🔑 Keys",loc:"Thamel, near Fire & Ice",date:"2026-08-15",desc:"Three keys on a red carabiner, small owl charm."},
-  {id:"LF-2285",status:"lost",name:"Golden retriever — Bruno",cat:"🐶 Pet",loc:"Baneshwor park",date:"2026-08-13",desc:"Answers to Bruno, blue collar, very friendly."},
-  {id:"LF-2279",status:"found",name:"iPhone 13, crashed case",cat:"📱 Electronics",loc:"Pulchowk bus stop",date:"2026-08-12",desc:"Locked, purple case, found on the bench."},
-  {id:"LF-2274",status:"lost",name:"Passport & folder",cat:"📄 Documents",loc:"Tribhuvan Airport",date:"2026-08-10",desc:"Blue folder with passport and boarding pass copies."},
-  {id:"LF-2270",status:"found",name:"Silver necklace",cat:"💍 Jewelry",loc:"New Road jewelry lane",date:"2026-08-09",desc:"Thin chain with a small pendant, found near a shop entrance."},
-  {id:"LF-2266",status:"lost",name:"Grey hoodie",cat:"👕 Clothing",loc:"Patan Durbar Square",date:"2026-08-08",desc:"Left on a bench, has a small tear on the left sleeve."},
-  {id:"LF-2261",status:"found",name:"Mountain bike, red frame",cat:"🚲 Bike",loc:"Budhanilkantha trail",date:"2026-08-07",desc:"Chained but unlocked, left near the trailhead sign."},
-  {id:"LF-2258",status:"lost",name:"AirPods case",cat:"📱 Electronics",loc:"Jawalakhel bus park",date:"2026-08-05",desc:"White case, small dent on the lid, no earbuds inside."},
-  {id:"LF-2250",status:"found",name:"Kids' backpack",cat:"👜 Bag",loc:"Bhaktapur Durbar Square",date:"2026-08-03",desc:"Cartoon print, contains a water bottle and pencil case."},
+
+const CATEGORIES = [
+    "Electronics",
+    "Keys",
+    "Bag",
+    "Pet",
+    "Documents",
+    "Jewelry",
+    "Clothing",
+    "Bike",
+    "Other"
 ];
+
+
+const CATEGORY_ICONS = {
+    Electronics: "📱",
+    Keys: "🔑",
+    Bag: "👜",
+    Pet: "🐶",
+    Documents: "📄",
+    Jewelry: "💍",
+    Clothing: "👕",
+    Bike: "🚲",
+    Other: "📦"
+};
+
+
+let POSTS = [];
 
 let activeStatus = "all";
 let activeCats = new Set();
 let searchTerm = "";
-let locTerm = "";
+let locationTerm = "";
 let dateFilter = "all";
 let sortOrder = "newest";
 
-function daysAgo(dateStr){
-  const d = new Date(dateStr); const now = new Date("2026-08-17");
-  return Math.floor((now-d)/(1000*60*60*24));
+
+// =========================================================
+// SESSION
+// =========================================================
+
+function getCurrentUser() {
+    try {
+        const storedSession =
+            sessionStorage.getItem("of_session") ||
+            localStorage.getItem("of_session");
+
+        if (!storedSession) {
+            return null;
+        }
+
+        return JSON.parse(storedSession);
+
+    } catch (error) {
+        sessionStorage.removeItem("of_session");
+        localStorage.removeItem("of_session");
+
+        return null;
+    }
 }
 
-function buildCategoryChips(){
-  const wrap = document.getElementById('categoryChips');
-  if(!wrap) return;
-  wrap.innerHTML = CATEGORIES.map(c=>`<button class="chip" data-cat="${c}">${c}</button>`).join('');
-  wrap.querySelectorAll('.chip').forEach(chip=>{
-    chip.addEventListener('click',()=>{
-      const c = chip.dataset.cat;
-      if(activeCats.has(c)){ activeCats.delete(c); chip.classList.remove('on'); }
-      else { activeCats.add(c); chip.classList.add('on'); }
-      render();
+
+const currentUser = getCurrentUser();
+
+
+if (!currentUser || !currentUser.user_id) {
+    window.location.replace("index.html");
+}
+
+
+function initializeCurrentUser() {
+    const currentUserName =
+        document.getElementById("currentUserName");
+
+    if (currentUserName && currentUser) {
+        currentUserName.textContent =
+            currentUser.name || "User";
+    }
+}
+
+
+const logoutButton =
+    document.getElementById("logoutButton");
+
+
+logoutButton?.addEventListener(
+    "click",
+    function () {
+        sessionStorage.removeItem("of_session");
+        localStorage.removeItem("of_session");
+
+        window.location.replace("index.html");
+    }
+);
+
+
+// =========================================================
+// SECURITY
+// =========================================================
+
+function escapeHtml(value) {
+    if (value === null || value === undefined) {
+        return "";
+    }
+
+    return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+}
+
+
+function escapeAttribute(value) {
+    return escapeHtml(value)
+        .replaceAll("`", "&#096;");
+}
+
+
+// =========================================================
+// DISPLAY HELPERS
+// =========================================================
+
+function showFeedMessage(message) {
+    const messageBox =
+        document.getElementById("feedMessage");
+
+    if (!messageBox) {
+        return;
+    }
+
+    messageBox.textContent = message;
+    messageBox.hidden = false;
+}
+
+
+function hideFeedMessage() {
+    const messageBox =
+        document.getElementById("feedMessage");
+
+    if (!messageBox) {
+        return;
+    }
+
+    messageBox.textContent = "";
+    messageBox.hidden = true;
+}
+
+
+function getCategoryIcon(category) {
+    if (!category) {
+        return "📦";
+    }
+
+    const cleanCategory = String(category)
+        .replace(
+            /^[^\p{L}\p{N}]+/u,
+            ""
+        )
+        .trim();
+
+    return CATEGORY_ICONS[cleanCategory] || "📦";
+}
+
+
+function formatDate(dateValue) {
+    if (!dateValue) {
+        return "Date not provided";
+    }
+
+    const date = new Date(dateValue);
+
+    if (Number.isNaN(date.getTime())) {
+        return String(dateValue);
+    }
+
+    return new Intl.DateTimeFormat(
+        "en",
+        {
+            year: "numeric",
+            month: "short",
+            day: "numeric"
+        }
+    ).format(date);
+}
+
+
+function daysAgo(dateValue) {
+    if (!dateValue) {
+        return Number.POSITIVE_INFINITY;
+    }
+
+    const itemDate = new Date(dateValue);
+    const currentDate = new Date();
+
+    itemDate.setHours(0, 0, 0, 0);
+    currentDate.setHours(0, 0, 0, 0);
+
+    const difference =
+        currentDate.getTime() - itemDate.getTime();
+
+    return Math.floor(
+        difference / (1000 * 60 * 60 * 24)
+    );
+}
+
+
+// =========================================================
+// STATISTICS
+// =========================================================
+
+async function loadHomepageStatistics() {
+    const lostElement =
+        document.getElementById("lostPostCount");
+
+    const foundElement =
+        document.getElementById("foundPostCount");
+
+    const reunitedElement =
+        document.getElementById("reunitedPostCount");
+
+    try {
+        const response = await fetch(
+            `${API_BASE_URL}/posts/stats`
+        );
+
+        const responseData = await response.json();
+
+        if (!response.ok) {
+            throw new Error(
+                responseData.detail ||
+                "Could not retrieve statistics"
+            );
+        }
+
+        const statistics =
+            responseData.statistics;
+
+        if (lostElement) {
+            lostElement.textContent =
+                Number(
+                    statistics.lost_posts || 0
+                ).toLocaleString();
+        }
+
+        if (foundElement) {
+            foundElement.textContent =
+                Number(
+                    statistics.found_posts || 0
+                ).toLocaleString();
+        }
+
+        if (reunitedElement) {
+            reunitedElement.textContent =
+                Number(
+                    statistics.reunited_items || 0
+                ).toLocaleString();
+        }
+
+    } catch (error) {
+        console.error(
+            "Could not load statistics:",
+            error
+        );
+
+        /*
+         * If /posts/stats is unavailable, calculate
+         * visible counts from the loaded feed.
+         */
+        updateStatisticsFromPosts();
+    }
+}
+
+
+function updateStatisticsFromPosts() {
+    const lostElement =
+        document.getElementById("lostPostCount");
+
+    const foundElement =
+        document.getElementById("foundPostCount");
+
+    const reunitedElement =
+        document.getElementById("reunitedPostCount");
+
+    const lostCount = POSTS.filter(
+        post =>
+            post.status === "lost" &&
+            post.resolved !== true
+    ).length;
+
+    const foundCount = POSTS.filter(
+        post =>
+            post.status === "found" &&
+            post.resolved !== true
+    ).length;
+
+    const reunitedCount = POSTS.filter(
+        post => post.resolved === true
+    ).length;
+
+    if (lostElement) {
+        lostElement.textContent =
+            lostCount.toLocaleString();
+    }
+
+    if (foundElement) {
+        foundElement.textContent =
+            foundCount.toLocaleString();
+    }
+
+    if (reunitedElement) {
+        reunitedElement.textContent =
+            reunitedCount.toLocaleString();
+    }
+}
+
+
+// =========================================================
+// FETCH POSTS
+// =========================================================
+
+async function loadPosts() {
+    const board =
+        document.getElementById("board");
+
+    const resultCount =
+        document.getElementById("resultCount");
+
+    hideFeedMessage();
+
+    if (board) {
+        board.innerHTML = `
+            <div class="empty-state">
+                Loading posts...
+            </div>
+        `;
+    }
+
+    if (resultCount) {
+        resultCount.textContent =
+            "Loading posts...";
+    }
+
+    try {
+        const response = await fetch(
+            `${API_BASE_URL}/posts/feed?limit=100&offset=0`
+        );
+
+        let responseData = null;
+
+        try {
+            responseData = await response.json();
+        } catch (error) {
+            responseData = null;
+        }
+
+        if (!response.ok) {
+            throw new Error(
+                responseData?.detail ||
+                "Could not retrieve posts"
+            );
+        }
+
+        POSTS = Array.isArray(responseData.posts)
+            ? responseData.posts
+            : [];
+
+        render();
+        updateStatisticsFromPosts();
+
+    } catch (error) {
+        POSTS = [];
+
+        if (board) {
+            board.innerHTML = `
+                <div class="empty-state">
+                    Posts could not be loaded.
+                </div>
+            `;
+        }
+
+        if (resultCount) {
+            resultCount.textContent =
+                "0 posts";
+        }
+
+        if (error instanceof TypeError) {
+            showFeedMessage(
+                "Cannot connect to the backend. Make sure FastAPI is running at http://127.0.0.1:8000."
+            );
+        } else {
+            showFeedMessage(error.message);
+        }
+    }
+}
+
+
+// =========================================================
+// CATEGORY FILTERS
+// =========================================================
+
+function buildCategoryChips() {
+    const wrapper =
+        document.getElementById("categoryChips");
+
+    if (!wrapper) {
+        return;
+    }
+
+    wrapper.innerHTML = CATEGORIES.map(
+        category => `
+            <button
+                class="chip"
+                data-cat="${escapeAttribute(category)}"
+                type="button"
+            >
+                ${CATEGORY_ICONS[category]}
+                ${escapeHtml(category)}
+            </button>
+        `
+    ).join("");
+
+    wrapper
+        .querySelectorAll(".chip")
+        .forEach(function (chip) {
+            chip.addEventListener(
+                "click",
+                function () {
+                    const category =
+                        chip.dataset.cat;
+
+                    if (activeCats.has(category)) {
+                        activeCats.delete(category);
+                        chip.classList.remove("on");
+                    } else {
+                        activeCats.add(category);
+                        chip.classList.add("on");
+                    }
+
+                    render();
+                }
+            );
+        });
+}
+
+
+// =========================================================
+// FILTER EVENT LISTENERS
+// =========================================================
+
+const statusToggleElement =
+    document.getElementById("statusToggle");
+
+
+statusToggleElement?.addEventListener(
+    "click",
+    function (event) {
+        const button =
+            event.target.closest("button");
+
+        if (!button) {
+            return;
+        }
+
+        activeStatus = button.dataset.s;
+
+        statusToggleElement
+            .querySelectorAll("button")
+            .forEach(function (item) {
+                item.classList.remove("on");
+            });
+
+        button.classList.add("on");
+
+        render();
+    }
+);
+
+
+const searchElement =
+    document.getElementById("searchInput");
+
+
+searchElement?.addEventListener(
+    "input",
+    function (event) {
+        searchTerm = event.target.value
+            .trim()
+            .toLowerCase();
+
+        render();
+    }
+);
+
+
+const locationElement =
+    document.getElementById("locationInput");
+
+
+locationElement?.addEventListener(
+    "input",
+    function (event) {
+        locationTerm = event.target.value
+            .trim()
+            .toLowerCase();
+
+        render();
+    }
+);
+
+
+const dateElement =
+    document.getElementById("dateSelect");
+
+
+dateElement?.addEventListener(
+    "change",
+    function (event) {
+        dateFilter = event.target.value;
+        render();
+    }
+);
+
+
+const sortElement =
+    document.getElementById("sortSelect");
+
+
+sortElement?.addEventListener(
+    "change",
+    function (event) {
+        sortOrder = event.target.value;
+        render();
+    }
+);
+
+
+const clearFiltersElement =
+    document.getElementById("clearFilters");
+
+
+clearFiltersElement?.addEventListener(
+    "click",
+    function () {
+        activeStatus = "all";
+        activeCats.clear();
+        searchTerm = "";
+        locationTerm = "";
+        dateFilter = "all";
+        sortOrder = "newest";
+
+        if (searchElement) {
+            searchElement.value = "";
+        }
+
+        if (locationElement) {
+            locationElement.value = "";
+        }
+
+        if (dateElement) {
+            dateElement.value = "all";
+        }
+
+        if (sortElement) {
+            sortElement.value = "newest";
+        }
+
+        document
+            .querySelectorAll(".chip")
+            .forEach(function (chip) {
+                chip.classList.remove("on");
+            });
+
+        document
+            .querySelectorAll(
+                "#statusToggle button"
+            )
+            .forEach(function (button) {
+                button.classList.remove("on");
+            });
+
+        document
+            .querySelector(
+                '#statusToggle button[data-s="all"]'
+            )
+            ?.classList.add("on");
+
+        render();
+    }
+);
+
+
+function handlePostMediaError(imageElement) {
+    console.error(
+        "Could not load post image:",
+        imageElement.src
+    );
+
+    const errorBox = document.createElement("div");
+
+    errorBox.className = "post-media-error";
+    errorBox.textContent = "📷 Image unavailable";
+
+    imageElement.replaceWith(errorBox);
+}
+
+
+// =========================================================
+// RENDER POSTS
+// =========================================================
+
+function render() {
+    const board =
+        document.getElementById("board");
+
+    const resultCount =
+        document.getElementById("resultCount");
+
+    if (!board) {
+        return;
+    }
+
+    let items = POSTS.filter(function (post) {
+        const postStatus =
+            String(post.status || "").toLowerCase();
+
+        const postCategory =
+            String(post.category || "");
+
+        const postName =
+            String(post.name || "").toLowerCase();
+
+        const postDescription =
+            String(
+                post.description || ""
+            ).toLowerCase();
+
+        const postLocation =
+            String(
+                post.location || ""
+            ).toLowerCase();
+
+        if (
+            activeStatus !== "all" &&
+            postStatus !== activeStatus
+        ) {
+            return false;
+        }
+
+        if (
+            activeCats.size > 0 &&
+            !activeCats.has(postCategory)
+        ) {
+            return false;
+        }
+
+        if (
+            searchTerm &&
+            !postName.includes(searchTerm) &&
+            !postDescription.includes(searchTerm) &&
+            !postLocation.includes(searchTerm) &&
+            !postCategory
+                .toLowerCase()
+                .includes(searchTerm)
+        ) {
+            return false;
+        }
+
+        if (
+            locationTerm &&
+            !postLocation.includes(locationTerm)
+        ) {
+            return false;
+        }
+
+        const postAge = daysAgo(
+            post.created_at || post.item_date
+        );
+
+        if (
+            dateFilter === "today" &&
+            postAge > 0
+        ) {
+            return false;
+        }
+
+        if (
+            dateFilter === "week" &&
+            postAge > 7
+        ) {
+            return false;
+        }
+
+        if (
+            dateFilter === "month" &&
+            postAge > 30
+        ) {
+            return false;
+        }
+
+        return true;
     });
-  });
+
+
+    items.sort(function (firstPost, secondPost) {
+        const firstDate = new Date(
+            firstPost.created_at ||
+            firstPost.item_date ||
+            0
+        );
+
+        const secondDate = new Date(
+            secondPost.created_at ||
+            secondPost.item_date ||
+            0
+        );
+
+        if (sortOrder === "newest") {
+            return secondDate - firstDate;
+        }
+
+        return firstDate - secondDate;
+    });
+
+
+    if (resultCount) {
+        resultCount.textContent =
+            `${items.length} post${items.length === 1 ? "" : "s"}`;
+    }
+
+
+    if (items.length === 0) {
+        board.innerHTML = `
+            <div class="empty-state">
+                Nothing pinned here yet.
+                <br>
+                Try clearing a filter, or be the first to post.
+            </div>
+        `;
+
+        return;
+    }
+
+
+    board.innerHTML = items.map(
+        function (post, index) {
+            const rotations = [
+                -2,
+                1.5,
+                -1,
+                2,
+                0.5
+            ];
+
+            const rotation =
+                rotations[index % rotations.length];
+
+            const postId =
+                Number(post.post_id);
+
+            const postOwnerId =
+                Number(post.user_id);
+
+            const postStatus =
+                String(post.status || "lost")
+                    .toLowerCase();
+
+            const postName =
+                post.name || "Unnamed item";
+
+            const postCategory =
+                post.category || "Other";
+
+            const postLocation =
+                post.location ||
+                "Location not provided";
+
+            const postDate =
+                post.item_date ||
+                post.created_at;
+
+            const postDescription =
+                post.description ||
+                "No description provided.";
+
+            const mediaUrl = String(
+                post.media_url || post.image || ""
+            ).trim();
+
+            const mediaType = String(
+                post.media_type || ""
+            ).toLowerCase();
+
+            const isOwnPost =
+                Number(currentUser.user_id) ===
+                postOwnerId;
+
+            let actionButton = "";
+
+            if (post.resolved) {
+                actionButton = `
+                    <button
+                        class="claim-btn"
+                        type="button"
+                        disabled
+                    >
+                        Reunited
+                    </button>
+                `;
+            } else if (isOwnPost) {
+                actionButton = `
+                    <button
+                        class="claim-btn"
+                        type="button"
+                        disabled
+                    >
+                        Your post
+                    </button>
+                `;
+            } else {
+                actionButton = `
+                    <button
+                        class="claim-btn"
+                        type="button"
+                        onclick="openBackendChat(
+                            ${postId},
+                            ${postOwnerId},
+                            '${escapeAttribute(postName)}',
+                            '${escapeAttribute(postStatus)}'
+                        )"
+                    >
+                        ${
+                            postStatus === "lost"
+                                ? "I found this"
+                                : "This is mine"
+                        }
+                    </button>
+                `;
+            }
+
+            let mediaHtml = "";
+
+            if (mediaUrl) {
+                const isVideo =
+                    mediaType.startsWith("video/") ||
+                    /\.(mp4|webm|mov)(\?.*)?$/i.test(mediaUrl);
+
+                if (isVideo) {
+                    mediaHtml = `
+                        <video
+                            class="post-media"
+                            controls
+                            preload="metadata"
+                        >
+                            <source
+                                src="${escapeAttribute(mediaUrl)}"
+                                type="${escapeAttribute(
+                                    mediaType || "video/mp4"
+                                )}"
+                            >
+
+                            Your browser does not support video playback.
+                        </video>
+                    `;
+                } else {
+                    mediaHtml = `
+                        <img
+                            class="post-media"
+                            src="${escapeAttribute(mediaUrl)}"
+                            alt="${escapeAttribute(postName)}"
+                            loading="lazy"
+                            onerror="handlePostMediaError(this)"
+                        >
+                    `;
+                }
+            }
+
+            return `
+                <div
+                    class="tag-card"
+                    data-status="${escapeAttribute(postStatus)}"
+                    style="--rot:${rotation}deg;"
+                >
+                    <div class="pin"></div>
+
+                    <div class="stamp">
+                        ${
+                            post.resolved
+                                ? "reunited"
+                                : escapeHtml(postStatus)
+                        }
+                    </div>
+
+                    <div class="tag-icon">
+                        ${getCategoryIcon(postCategory)}
+                    </div>
+
+                    <h3>
+                        ${escapeHtml(postName)}
+                    </h3>
+
+                    ${mediaHtml}
+
+                    <div class="tag-meta">
+                        <span>
+                            📍 ${escapeHtml(postLocation)}
+                        </span>
+
+                        <span>
+                            📅 ${escapeHtml(formatDate(postDate))}
+                        </span>
+                    </div>
+
+                    <div class="tag-desc">
+                        ${escapeHtml(postDescription)}
+                    </div>
+
+                    <div class="perforation">
+                        <span class="ticket-id">
+                            #${postId}
+                        </span>
+
+                        ${actionButton}
+                    </div>
+                </div>
+            `;
+        }
+    ).join("");
 }
 
-const statusToggleEl = document.getElementById('statusToggle');
-if(statusToggleEl){
-  statusToggleEl.addEventListener('click',(e)=>{
-    const btn = e.target.closest('button'); if(!btn) return;
-    activeStatus = btn.dataset.s;
-    [...e.currentTarget.children].forEach(b=>b.classList.remove('on'));
-    btn.classList.add('on');
-    render();
-  });
+
+// =========================================================
+// CHAT BRIDGE
+// =========================================================
+
+function openBackendChat(
+    postId,
+    postOwnerId,
+    postName,
+    postStatus
+) {
+    if (
+        typeof openChat !== "function"
+    ) {
+        alert(
+            "The chat function is not available."
+        );
+
+        return;
+    }
+
+    openChat(
+        String(postId),
+        postName,
+        postStatus
+    );
+
+    const chatPanel =
+        document.getElementById("chatPanel");
+
+    if (chatPanel) {
+        chatPanel.dataset.postId =
+            String(postId);
+
+        chatPanel.dataset.postOwnerId =
+            String(postOwnerId);
+    }
 }
 
-const searchEl = document.getElementById('searchInput');
-if(searchEl){
-  searchEl.addEventListener('input',(e)=>{ searchTerm = e.target.value.toLowerCase(); render(); });
+
+// =========================================================
+// UNREAD MESSAGE COUNT
+// =========================================================
+
+async function loadUnreadMessageCount() {
+    const badge =
+        document.getElementById(
+            "unreadMessageCount"
+        );
+
+    if (!badge || !currentUser) {
+        return;
+    }
+
+    try {
+        const response = await fetch(
+            `${API_BASE_URL}/messages/inbox/${currentUser.user_id}?unread_only=true`
+        );
+
+        const responseData =
+            await response.json();
+
+        if (!response.ok) {
+            throw new Error(
+                responseData.detail ||
+                "Could not retrieve unread messages"
+            );
+        }
+
+        const unreadCount = Number(
+            responseData.total_messages || 0
+        );
+
+        badge.textContent =
+            unreadCount > 99
+                ? "99+"
+                : String(unreadCount);
+
+        badge.hidden = unreadCount === 0;
+
+    } catch (error) {
+        console.error(
+            "Could not load unread messages:",
+            error
+        );
+
+        badge.hidden = true;
+    }
 }
 
-const locationEl = document.getElementById('locationInput');
-if(locationEl){
-  locationEl.addEventListener('input',(e)=>{ locTerm = e.target.value.toLowerCase(); render(); });
-}
 
-const dateEl = document.getElementById('dateSelect');
-if(dateEl){
-  dateEl.addEventListener('change',(e)=>{ dateFilter = e.target.value; render(); });
-}
+// =========================================================
+// INITIALIZATION
+// =========================================================
 
-const sortEl = document.getElementById('sortSelect');
-if(sortEl){
-  sortEl.addEventListener('change',(e)=>{ sortOrder = e.target.value; render(); });
-}
-
-const clearEl = document.getElementById('clearFilters');
-if(clearEl){
-  clearEl.addEventListener('click',()=>{
-    activeStatus="all"; activeCats.clear(); searchTerm=""; locTerm=""; dateFilter="all";
-    if(searchEl) searchEl.value="";
-    if(locationEl) locationEl.value="";
-    if(dateEl) dateEl.value="all";
-    document.querySelectorAll('.chip').forEach(c=>c.classList.remove('on'));
-    document.querySelectorAll('#statusToggle button').forEach(b=>b.classList.remove('on'));
-    const allBtn = document.querySelector('#statusToggle button[data-s="all"]');
-    if(allBtn) allBtn.classList.add('on');
-    render();
-  });
-}
-
-function render(){
-  const board = document.getElementById('board');
-  const resultCount = document.getElementById('resultCount');
-  if(!board) return;
-  let items = POSTS.filter(p=>{
-    if(activeStatus!=="all" && p.status!==activeStatus) return false;
-    if(activeCats.size>0 && !activeCats.has(p.cat)) return false;
-    if(searchTerm && !(p.name.toLowerCase().includes(searchTerm)||p.desc.toLowerCase().includes(searchTerm)||p.loc.toLowerCase().includes(searchTerm))) return false;
-    if(locTerm && !p.loc.toLowerCase().includes(locTerm)) return false;
-    if(dateFilter==="today" && daysAgo(p.date)>0) return false;
-    if(dateFilter==="week" && daysAgo(p.date)>7) return false;
-    if(dateFilter==="month" && daysAgo(p.date)>30) return false;
-    return true;
-  });
-  items.sort((a,b)=> sortOrder==="newest" ? new Date(b.date)-new Date(a.date) : new Date(a.date)-new Date(b.date));
-
-  if(resultCount) resultCount.textContent = `${items.length} post${items.length!==1?'s':''}`;
-  if(items.length===0){
-    board.innerHTML = `<div class="empty-state">Nothing pinned here yet.<br>Try clearing a filter, or be the first to post.</div>`;
-    return;
-  }
-  board.innerHTML = items.map((p,i)=>{
-    const rot = (i%5===0?-2:i%5===1?1.5:i%5===2?-1:i%5===3?2:0.5);
-    return `
-    <div class="tag-card" data-status="${p.status}" style="--rot:${rot}deg;">
-      <div class="pin"></div>
-      <div class="stamp">${p.status}</div>
-      <div class="tag-icon">${p.cat.split(' ')[0]}</div>
-      <h3>${p.name}</h3>
-      <div class="tag-meta">
-        <span>📍 ${p.loc}</span>
-        <span>📅 ${p.date}</span>
-      </div>
-      <div class="tag-desc">${p.desc}</div>
-      <div class="perforation">
-        <span class="ticket-id">#${p.id}</span>
-        <button class="claim-btn" onclick="openChat('${p.id}','${p.name.replace(/'/g,"\\'")}','${p.status}')">${p.status==='lost'?'I found this':'This is mine'}</button>
-      </div>
-    </div>`;
-  }).join('');
-}
-
-// Initialize feed on page load
+initializeCurrentUser();
 buildCategoryChips();
-render();
-updateUnreadBadge();
-updateHeaderAuth();
+
+loadPosts();
+loadHomepageStatistics();
+loadUnreadMessageCount();

@@ -1,85 +1,507 @@
-/* chat.js — index.html + messages.html */
-// Handles: opening chat modal, rendering message thread, sending/receiving messages
+const MESSAGE_API_BASE_URL =
+    "http://127.0.0.1:8000";
 
-const CONVERSATIONS = {
-  "LF-2291":{name:"Black leather wallet",status:"lost",time:"2h ago",unread:true,
-    thread:[{from:"them",text:"Hi! I think I found your wallet near Ratna Park. It has a student ID inside?"}]},
-  "LF-2279":{name:"iPhone 13, crashed case",status:"found",time:"1d ago",unread:true,
-    thread:[{from:"you",text:"Hey, I saw your found post — that might be my phone, purple case?"},{from:"them",text:"Yes! Purple case with a crack on top right corner. Where did you lose it?"}]},
-};
-const AUTO_REPLIES = [
-  "Sounds right — can you describe it a bit more so I can be sure?",
-  "Got it, thanks for the details. When are you free to meet up?",
-  "That matches what I have. I can meet near the original location tomorrow.",
-  "Perfect, I'll bring it with me. See you there!"
-];
+let activeConversation = null;
 
-function openChat(postId, postName, status){
-  if(!CONVERSATIONS[postId]){
-    CONVERSATIONS[postId] = {name:postName, status:status, time:'just now', unread:false,
-      thread:[{from:'them', text: status==='lost'
-        ? `Hi! Thanks for reaching out about "${postName}". Where did you find it?`
-        : `Hi! I think "${postName}" might be mine. Can you tell me more about where you found it?`}]};
-  } else {
-    CONVERSATIONS[postId].unread = false;
-  }
-  const c = CONVERSATIONS[postId];
-  const chatWho = document.getElementById('chatWho');
-  const chatSub = document.getElementById('chatSub');
-  const chatPanel = document.getElementById('chatPanel');
-  const chatOverlay = document.getElementById('chatOverlay');
-  if(!chatOverlay) return;
-  if(chatWho) chatWho.textContent = postName;
-  if(chatSub) chatSub.textContent = 're: ' + (status==='lost' ? 'Lost post' : 'Found post') + ' #' + postId;
-  if(chatPanel){
-    chatPanel.dataset.status = status;
-    chatPanel.dataset.postId = postId;
-  }
-  renderThread();
-  chatOverlay.classList.add('open');
-  const chatInput = document.getElementById('chatInput');
-  if(chatInput) chatInput.focus();
-  updateUnreadBadge();
+
+// =========================================================
+// OPEN CONVERSATION
+// =========================================================
+
+async function openBackendConversation(
+    postId,
+    otherUserId,
+    postName,
+    postStatus
+) {
+    const currentUser = getCurrentUser();
+
+    if (!currentUser || !currentUser.user_id) {
+        window.location.replace("index.html");
+        return;
+    }
+
+    activeConversation = {
+        postId: Number(postId),
+        otherUserId: Number(otherUserId),
+        postName: postName,
+        postStatus: postStatus
+    };
+
+    const chatOverlay =
+        document.getElementById("chatOverlay");
+
+    const chatPanel =
+        document.getElementById("chatPanel");
+
+    const chatWho =
+        document.getElementById("chatWho");
+
+    const chatSub =
+        document.getElementById("chatSub");
+
+    const chatInput =
+        document.getElementById("chatInput");
+
+    if (!chatOverlay || !chatPanel) {
+        return;
+    }
+
+    chatPanel.dataset.postId =
+        String(postId);
+
+    chatPanel.dataset.otherUserId =
+        String(otherUserId);
+
+    chatPanel.dataset.status =
+        postStatus || "";
+
+    if (chatWho) {
+        chatWho.textContent =
+            postName || "Item";
+    }
+
+    if (chatSub) {
+        chatSub.textContent =
+            `re: ${postStatus || "item"} post #${postId}`;
+    }
+
+    chatOverlay.classList.add("open");
+
+    await loadConversation();
+
+    chatInput?.focus();
 }
 
-function renderThread(){
-  const threadEl = document.getElementById('chatThread');
-  const postId = document.getElementById('chatPanel')?.dataset.postId;
-  if(!threadEl || !postId) return;
-  const c = CONVERSATIONS[postId];
-  if(!c) return;
-  threadEl.innerHTML = c.thread.map(m=>`<div class="bubble ${m.from}">${m.text}</div>`).join('');
-  threadEl.scrollTop = threadEl.scrollHeight;
+
+// Keep compatibility with Homepage Feed.js
+function openChat(
+    postId,
+    postName,
+    status,
+    postOwnerId = null
+) {
+    const chatPanel =
+        document.getElementById("chatPanel");
+
+    const storedOwnerId =
+        postOwnerId ||
+        chatPanel?.dataset.postOwnerId;
+
+    if (!storedOwnerId) {
+        showChatError(
+            "The post owner information is missing."
+        );
+
+        return;
+    }
+
+    openBackendConversation(
+        postId,
+        storedOwnerId,
+        postName,
+        status
+    );
 }
 
-function closeChat(){
-  const el = document.getElementById('chatOverlay');
-  if(el) el.classList.remove('open');
+
+// =========================================================
+// LOAD CONVERSATION
+// =========================================================
+
+async function loadConversation() {
+    const currentUser = getCurrentUser();
+
+    const thread =
+        document.getElementById("chatThread");
+
+    if (
+        !currentUser ||
+        !activeConversation ||
+        !thread
+    ) {
+        return;
+    }
+
+    hideChatError();
+
+    thread.innerHTML = `
+        <p class="message-loading">
+            Loading conversation...
+        </p>
+    `;
+
+    const query = new URLSearchParams({
+        post_id: String(
+            activeConversation.postId
+        ),
+
+        first_user_id: String(
+            currentUser.user_id
+        ),
+
+        second_user_id: String(
+            activeConversation.otherUserId
+        )
+    });
+
+    try {
+        const response = await fetch(
+            `${MESSAGE_API_BASE_URL}/messages/conversation?${query}`
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(
+                getMessageApiError(data)
+            );
+        }
+
+        renderBackendThread(
+            data.messages || []
+        );
+
+        await markVisibleMessagesAsRead(
+            data.messages || []
+        );
+
+    } catch (error) {
+        thread.innerHTML = "";
+
+        showChatError(
+            error.message ||
+            "Could not load the conversation."
+        );
+    }
 }
 
-function sendMessage(){
-  const input = document.getElementById('chatInput');
-  const text = input ? input.value.trim() : '';
-  if(!text) return;
-  const postId = document.getElementById('chatPanel')?.dataset.postId;
-  if(!postId) return;
-  const c = CONVERSATIONS[postId];
-  if(!c) return;
-  c.thread.push({from:'you', text});
-  input.value = '';
-  renderThread();
 
-  const threadEl = document.getElementById('chatThread');
-  const typing = document.createElement('div');
-  typing.className = 'bubble typing';
-  typing.textContent = '•••';
-  threadEl.appendChild(typing);
-  threadEl.scrollTop = threadEl.scrollHeight;
+// =========================================================
+// RENDER CONVERSATION
+// =========================================================
 
-  setTimeout(()=>{
-    typing.remove();
-    const reply = AUTO_REPLIES[Math.floor(Math.random()*AUTO_REPLIES.length)];
-    c.thread.push({from:'them', text: reply});
-    renderThread();
-  }, 1000 + Math.random()*700);
+function renderBackendThread(messages) {
+    const currentUser = getCurrentUser();
+
+    const thread =
+        document.getElementById("chatThread");
+
+    if (!thread || !currentUser) {
+        return;
+    }
+
+    if (!messages.length) {
+        thread.innerHTML = `
+            <p class="empty-chat-message">
+                No messages yet. Send the first message.
+            </p>
+        `;
+
+        return;
+    }
+
+    thread.innerHTML = "";
+
+    messages.forEach(function (message) {
+        const bubble =
+            document.createElement("div");
+
+        const isCurrentUser =
+            Number(message.sender_id) ===
+            Number(currentUser.user_id);
+
+        bubble.className =
+            `bubble ${isCurrentUser ? "you" : "them"}`;
+
+        const messageText =
+            document.createElement("div");
+
+        messageText.textContent =
+            message.body;
+
+        bubble.appendChild(messageText);
+
+        if (message.created_at) {
+            const messageTime =
+                document.createElement("small");
+
+            messageTime.className =
+                "message-time";
+
+            messageTime.textContent =
+                formatMessageTime(
+                    message.created_at
+                );
+
+            bubble.appendChild(messageTime);
+        }
+
+        thread.appendChild(bubble);
+    });
+
+    thread.scrollTop =
+        thread.scrollHeight;
+}
+
+
+// =========================================================
+// SEND MESSAGE
+// =========================================================
+
+async function sendMessage() {
+    const currentUser = getCurrentUser();
+
+    const input =
+        document.getElementById("chatInput");
+
+    const sendButton =
+        document.getElementById(
+            "chatSendButton"
+        );
+
+    const body =
+        input?.value.trim() || "";
+
+    if (
+        !currentUser ||
+        !activeConversation ||
+        !body
+    ) {
+        return;
+    }
+
+    hideChatError();
+
+    if (sendButton) {
+        sendButton.disabled = true;
+    }
+
+    if (input) {
+        input.disabled = true;
+    }
+
+    try {
+        const response = await fetch(
+            `${MESSAGE_API_BASE_URL}/messages/send`,
+            {
+                method: "POST",
+
+                headers: {
+                    "Content-Type":
+                        "application/json"
+                },
+
+                body: JSON.stringify({
+                    post_id:
+                        activeConversation.postId,
+
+                    sender_id:
+                        Number(currentUser.user_id),
+
+                    receiver_id:
+                        activeConversation.otherUserId,
+
+                    body: body
+                })
+            }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(
+                getMessageApiError(data)
+            );
+        }
+
+        input.value = "";
+
+        await loadConversation();
+
+        if (
+            typeof loadMessageConversations ===
+            "function"
+        ) {
+            await loadMessageConversations();
+        }
+
+        if (
+            typeof updateUnreadBadge ===
+            "function"
+        ) {
+            await updateUnreadBadge();
+        }
+
+    } catch (error) {
+        showChatError(
+            error.message ||
+            "The message could not be sent."
+        );
+
+    } finally {
+        if (sendButton) {
+            sendButton.disabled = false;
+        }
+
+        if (input) {
+            input.disabled = false;
+            input.focus();
+        }
+    }
+}
+
+
+// =========================================================
+// MARK MESSAGES AS READ
+// =========================================================
+
+async function markVisibleMessagesAsRead(messages) {
+    const currentUser = getCurrentUser();
+
+    if (!currentUser) {
+        return;
+    }
+
+    const unreadMessages = messages.filter(
+        function (message) {
+            return (
+                Number(message.receiver_id) ===
+                    Number(currentUser.user_id) &&
+                message.is_read === false
+            );
+        }
+    );
+
+    await Promise.all(
+        unreadMessages.map(
+            async function (message) {
+                try {
+                    await fetch(
+                        `${MESSAGE_API_BASE_URL}/messages/${message.message_id}/read?user_id=${currentUser.user_id}`,
+                        {
+                            method: "PATCH"
+                        }
+                    );
+                } catch (error) {
+                    console.error(
+                        "Could not mark message as read:",
+                        error
+                    );
+                }
+            }
+        )
+    );
+
+    if (
+        unreadMessages.length &&
+        typeof updateUnreadBadge === "function"
+    ) {
+        await updateUnreadBadge();
+    }
+}
+
+
+// =========================================================
+// CLOSE CHAT
+// =========================================================
+
+function closeChat() {
+    const overlay =
+        document.getElementById("chatOverlay");
+
+    if (overlay) {
+        overlay.classList.remove("open");
+    }
+
+    activeConversation = null;
+}
+
+
+document
+    .getElementById("chatOverlay")
+    ?.addEventListener(
+        "click",
+        function (event) {
+            if (event.target === event.currentTarget) {
+                closeChat();
+            }
+        }
+    );
+
+
+document.addEventListener(
+    "keydown",
+    function (event) {
+        if (event.key === "Escape") {
+            closeChat();
+        }
+    }
+);
+
+
+// =========================================================
+// CHAT HELPERS
+// =========================================================
+
+function showChatError(message) {
+    const errorBox =
+        document.getElementById("chatError");
+
+    if (!errorBox) {
+        return;
+    }
+
+    errorBox.textContent = message;
+    errorBox.hidden = false;
+}
+
+
+function hideChatError() {
+    const errorBox =
+        document.getElementById("chatError");
+
+    if (!errorBox) {
+        return;
+    }
+
+    errorBox.textContent = "";
+    errorBox.hidden = true;
+}
+
+
+function getMessageApiError(data) {
+    if (typeof data?.detail === "string") {
+        return data.detail;
+    }
+
+    if (Array.isArray(data?.detail)) {
+        return data.detail
+            .map(function (error) {
+                return error.msg ||
+                    "Invalid message data";
+            })
+            .join(". ");
+    }
+
+    return "The message request failed.";
+}
+
+
+function formatMessageTime(dateValue) {
+    const date = new Date(dateValue);
+
+    if (Number.isNaN(date.getTime())) {
+        return "";
+    }
+
+    return new Intl.DateTimeFormat(
+        "en",
+        {
+            month: "short",
+            day: "numeric",
+            hour: "numeric",
+            minute: "2-digit"
+        }
+    ).format(date);
 }

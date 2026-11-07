@@ -659,12 +659,29 @@
 
   <div class="stats">
     <div class="wrap">
-      <div><strong data-count="341">341</strong><span>ITEMS REUNITED</span></div>
-      <div><strong data-count="2172">2,172</strong><span>POSTS ON THE BOARD</span></div>
-      <div><strong>24h</strong><span>AVERAGE FIRST REPLY</span></div>
-      <div><strong>Free</strong><span>ALWAYS</span></div>
+
+        <div>
+            <strong id="reunitedCount">0</strong>
+            <span>ITEMS REUNITED</span>
+        </div>
+
+        <div>
+            <strong id="totalPostCount">0</strong>
+            <span>POSTS ON THE BOARD</span>
+        </div>
+
+        <div>
+            <strong id="averageReplyTime">—</strong>
+            <span>AVERAGE FIRST REPLY</span>
+        </div>
+
+        <div>
+            <strong>Free</strong>
+            <span>ALWAYS</span>
+        </div>
+
     </div>
-  </div>
+    </div>
 
   <section class="block" id="how">
     <div class="wrap">
@@ -935,35 +952,326 @@
 </div>
 
 <script>
-/* If the visitor is already logged in, swap the login/sign-up buttons for board/account links. */
-(function(){
-  let s = null;
-  try { s = JSON.parse(sessionStorage.getItem('of_session')) || JSON.parse(localStorage.getItem('of_session')); } catch(e){}
-  if(!s) return;
-  document.getElementById('navActions').innerHTML =
-    '<a class="btn" href="account.html">My account</a><a class="btn solid" href="onlyfounds-corkboard.html">Open board</a>';
-  document.getElementById('heroCta').innerHTML =
-    '<a class="btn solid big" href="onlyfounds-corkboard.html">Open the board</a><a class="btn big" href="account.html">My account</a>';
-  document.getElementById('ctaRow').innerHTML =
-    '<a class="btn green big" href="onlyfounds-corkboard.html">Open the board</a>';
+const API_BASE_URL = "http://127.0.0.1:8000";
+
+
+// =========================================================
+// LANDING PAGE STATISTICS
+// GET /posts/stats
+// =========================================================
+
+async function loadLandingStatistics() {
+    const reunitedElement =
+        document.getElementById("reunitedCount");
+
+    const totalPostsElement =
+        document.getElementById("totalPostCount");
+
+    const averageReplyElement =
+        document.getElementById("averageReplyTime");
+
+    try {
+        const response = await fetch(
+            `${API_BASE_URL}/posts/stats`
+        );
+
+        const responseData = await response.json();
+
+        if (!response.ok) {
+            throw new Error(
+                responseData.detail ||
+                "Could not retrieve statistics"
+            );
+        }
+
+        const statistics = responseData.statistics;
+
+        animateCount(
+            reunitedElement,
+            statistics.reunited_items
+        );
+
+        animateCount(
+            totalPostsElement,
+            statistics.total_posts
+        );
+
+        if (
+            statistics.average_first_reply_hours === null
+        ) {
+            averageReplyElement.textContent = "—";
+        } else {
+            averageReplyElement.textContent =
+                formatReplyTime(
+                    statistics.average_first_reply_hours
+                );
+        }
+
+    } catch (error) {
+        console.error(
+            "Statistics loading error:",
+            error
+        );
+
+        if (reunitedElement) {
+            reunitedElement.textContent = "0";
+        }
+
+        if (totalPostsElement) {
+            totalPostsElement.textContent = "0";
+        }
+
+        if (averageReplyElement) {
+            averageReplyElement.textContent = "—";
+        }
+    }
+}
+
+
+function formatReplyTime(hours) {
+    const numericHours = Number(hours);
+
+    if (!Number.isFinite(numericHours)) {
+        return "—";
+    }
+
+    if (numericHours < 1) {
+        const minutes = Math.max(
+            1,
+            Math.round(numericHours * 60)
+        );
+
+        return `${minutes}m`;
+    }
+
+    if (numericHours < 24) {
+        return `${Math.round(numericHours)}h`;
+    }
+
+    const days = numericHours / 24;
+
+    if (days < 10) {
+        return `${days.toFixed(1)}d`;
+    }
+
+    return `${Math.round(days)}d`;
+}
+
+
+function animateCount(element, finalNumber) {
+    if (!element) {
+        return;
+    }
+
+    const target = Number(finalNumber);
+
+    if (!Number.isFinite(target) || target < 0) {
+        element.textContent = "0";
+        return;
+    }
+
+    if (
+        window.matchMedia(
+            "(prefers-reduced-motion: reduce)"
+        ).matches
+    ) {
+        element.textContent =
+            target.toLocaleString();
+        return;
+    }
+
+    const duration = 700;
+    const startingTime = performance.now();
+
+    function updateNumber(currentTime) {
+        const progress = Math.min(
+            (currentTime - startingTime) / duration,
+            1
+        );
+
+        const easedProgress =
+            1 - Math.pow(1 - progress, 3);
+
+        const displayedNumber = Math.floor(
+            target * easedProgress
+        );
+
+        element.textContent =
+            displayedNumber.toLocaleString();
+
+        if (progress < 1) {
+            requestAnimationFrame(updateNumber);
+        } else {
+            element.textContent =
+                target.toLocaleString();
+        }
+    }
+
+    requestAnimationFrame(updateNumber);
+}
+
+
+loadLandingStatistics();
+
+
+// =========================================================
+// SESSION HELPERS
+// =========================================================
+
+function getStoredSession() {
+    try {
+        const sessionValue =
+            sessionStorage.getItem("of_session") ||
+            localStorage.getItem("of_session");
+
+        return sessionValue
+            ? JSON.parse(sessionValue)
+            : null;
+
+    } catch (error) {
+        sessionStorage.removeItem("of_session");
+        localStorage.removeItem("of_session");
+
+        return null;
+    }
+}
+
+
+function saveSession(user, rememberUser) {
+    sessionStorage.removeItem("of_session");
+    localStorage.removeItem("of_session");
+
+    const sessionData = JSON.stringify(user);
+
+    if (rememberUser) {
+        localStorage.setItem(
+            "of_session",
+            sessionData
+        );
+    } else {
+        sessionStorage.setItem(
+            "of_session",
+            sessionData
+        );
+    }
+}
+
+
+// =========================================================
+// DISPLAY LOGGED-IN NAVIGATION
+// =========================================================
+
+(function updateLandingPageForLoggedInUser() {
+    const session = getStoredSession();
+
+    if (!session) {
+        return;
+    }
+
+    const navActions = document.getElementById("navActions");
+    const heroCta = document.getElementById("heroCta");
+    const ctaRow = document.getElementById("ctaRow");
+
+    if (navActions) {
+        navActions.innerHTML = `
+            <span
+                style="
+                    display:flex;
+                    align-items:center;
+                    font-weight:700;
+                "
+            >
+                ${escapeHtml(session.name || "User")}
+            </span>
+
+            <a
+                class="btn solid"
+                href="Homepage.html"
+            >
+                Open board
+            </a>
+
+            <button
+                class="btn"
+                id="landingLogoutButton"
+                type="button"
+            >
+                Logout
+            </button>
+        `;
+    }
+
+    if (heroCta) {
+        heroCta.innerHTML = `
+            <a
+                class="btn solid big"
+                href="Homepage.html"
+            >
+                Open the board
+            </a>
+        `;
+    }
+
+    if (ctaRow) {
+        ctaRow.innerHTML = `
+            <a
+                class="btn green big"
+                href="Homepage.html"
+            >
+                Open the board
+            </a>
+        `;
+    }
+
+    const logoutButton = document.getElementById(
+        "landingLogoutButton"
+    );
+
+    if (logoutButton) {
+        logoutButton.addEventListener("click", function () {
+            sessionStorage.removeItem("of_session");
+            localStorage.removeItem("of_session");
+
+            window.location.reload();
+        });
+    }
 })();
 
-// ==============================
-// LOGIN AND REGISTER MODALS
-// ==============================
+
+// =========================================================
+// SECURITY HELPER
+// =========================================================
+
+function escapeHtml(value) {
+    return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+}
+
+
+// =========================================================
+// MODALS
+// =========================================================
 
 const loginModal = document.getElementById("loginModal");
 const registerModal = document.getElementById("registerModal");
 
 const closeLogin = document.getElementById("closeLogin");
-const closeRegister = document.getElementById("closeRegister");
+const closeRegister = document.getElementById(
+    "closeRegister"
+);
 
 
-// OPEN MODAL
 function openModal(modal) {
+    if (!modal) {
+        return;
+    }
 
-    loginModal.classList.remove("active");
-    registerModal.classList.remove("active");
+    loginModal?.classList.remove("active");
+    registerModal?.classList.remove("active");
 
     modal.classList.add("active");
 
@@ -971,241 +1279,534 @@ function openModal(modal) {
 }
 
 
-// CLOSE MODALS
 function closeModals() {
-
-    loginModal.classList.remove("active");
-    registerModal.classList.remove("active");
+    loginModal?.classList.remove("active");
+    registerModal?.classList.remove("active");
 
     document.body.style.overflow = "";
-
 }
 
 
-// LOGIN BUTTONS
-document.querySelectorAll(".login-trigger").forEach(button => {
-
-    button.addEventListener("click", function(e) {
-
-        e.preventDefault();
-        openModal(loginModal);
-
-    });
-
-});
+document.querySelectorAll(".login-trigger").forEach(
+    function (button) {
+        button.addEventListener("click", function (event) {
+            event.preventDefault();
+            openModal(loginModal);
+        });
+    }
+);
 
 
-// REGISTER BUTTONS
-document.querySelectorAll(".register-trigger").forEach(button => {
-
-    button.addEventListener("click", function(e) {
-
-        e.preventDefault();
-        openModal(registerModal);
-
-    });
-
-});
+document.querySelectorAll(".register-trigger").forEach(
+    function (button) {
+        button.addEventListener("click", function (event) {
+            event.preventDefault();
+            openModal(registerModal);
+        });
+    }
+);
 
 
-// CLOSE BUTTONS
-closeLogin.addEventListener("click", closeModals);
-closeRegister.addEventListener("click", closeModals);
+closeLogin?.addEventListener("click", closeModals);
+closeRegister?.addEventListener("click", closeModals);
 
 
-// CLICK OUTSIDE POPUP
-[loginModal, registerModal].forEach(modal => {
-
-    modal.addEventListener("click", function(e) {
-
-        if (e.target === modal) {
+[loginModal, registerModal].forEach(function (modal) {
+    modal?.addEventListener("click", function (event) {
+        if (event.target === modal) {
             closeModals();
         }
-
     });
-
 });
 
 
-// ESCAPE KEY
-document.addEventListener("keydown", function(e) {
-
-    if (e.key === "Escape") {
+document.addEventListener("keydown", function (event) {
+    if (event.key === "Escape") {
         closeModals();
     }
-
 });
 
 
-// SWITCH REGISTER TO LOGIN
-document.querySelectorAll(".switch-to-login").forEach(link => {
+document.querySelectorAll(".switch-to-login").forEach(
+    function (link) {
+        link.addEventListener("click", function (event) {
+            event.preventDefault();
+            openModal(loginModal);
+        });
+    }
+);
 
-    link.addEventListener("click", function(e) {
 
-        e.preventDefault();
-        openModal(loginModal);
-
+document
+    .querySelectorAll("#loginModal .perforation a")
+    .forEach(function (link) {
+        link.addEventListener(
+            "click",
+            function (event) {
+                event.preventDefault();
+                openModal(registerModal);
+            }
+        );
     });
 
-});
 
-
-// SWITCH LOGIN TO REGISTER
-document.querySelectorAll("#loginModal .perforation a").forEach(link => {
-
-    link.addEventListener("click", function(e) {
-
-        e.preventDefault();
-        openModal(registerModal);
-
-    });
-
-});
-// ==============================
-// PASSWORD SHOW / HIDE
-// ==============================
+// =========================================================
+// PASSWORD VISIBILITY
+// =========================================================
 
 function setupPasswordToggle(inputId, buttonId) {
-
     const input = document.getElementById(inputId);
     const button = document.getElementById(buttonId);
 
-    if (!input || !button) return;
+    if (!input || !button) {
+        return;
+    }
 
-    button.addEventListener("click", function() {
+    button.addEventListener("click", function () {
+        const passwordIsHidden =
+            input.type === "password";
 
-        const isHidden = input.type === "password";
+        input.type = passwordIsHidden
+            ? "text"
+            : "password";
 
-        input.type = isHidden ? "text" : "password";
-
-        button.textContent = isHidden ? "Hide" : "Show";
+        button.textContent = passwordIsHidden
+            ? "Hide"
+            : "Show";
 
         button.setAttribute(
             "aria-label",
-            isHidden ? "Hide password" : "Show password"
+            passwordIsHidden
+                ? "Hide password"
+                : "Show password"
         );
-
     });
-
 }
 
 
-// LOGIN PASSWORD
 setupPasswordToggle("password", "pwToggle");
-
-// REGISTER PASSWORD
 setupPasswordToggle("regPassword", "regPwToggle");
+setupPasswordToggle(
+    "regConfirm",
+    "regConfirmToggle"
+);
 
-// REGISTER CONFIRM PASSWORD
-setupPasswordToggle("regConfirm", "regConfirmToggle");
+
+// =========================================================
+// FORM HELPERS
+// =========================================================
+
+const emailPattern =
+    /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+
+function showAlert(alertBox, message, isSuccess = false) {
+    if (!alertBox) {
+        return;
+    }
+
+    alertBox.textContent = message;
+    alertBox.classList.add("show");
+
+    if (isSuccess) {
+        alertBox.style.background = "#d9e5de";
+        alertBox.style.borderColor = "#3b6357";
+        alertBox.style.color = "#3b6357";
+    } else {
+        alertBox.style.background = "";
+        alertBox.style.borderColor = "";
+        alertBox.style.color = "";
+    }
+}
+
+
+function hideAlert(alertBox) {
+    if (!alertBox) {
+        return;
+    }
+
+    alertBox.textContent = "";
+    alertBox.classList.remove("show");
+
+    alertBox.style.background = "";
+    alertBox.style.borderColor = "";
+    alertBox.style.color = "";
+}
+
+
+function getApiErrorMessage(data, fallbackMessage) {
+    if (!data) {
+        return fallbackMessage;
+    }
+
+    if (typeof data.detail === "string") {
+        return data.detail;
+    }
+
+    if (Array.isArray(data.detail)) {
+        return data.detail
+            .map(function (error) {
+                return error.msg || "Invalid value";
+            })
+            .join(". ");
+    }
+
+    if (typeof data.message === "string") {
+        return data.message;
+    }
+
+    return fallbackMessage;
+}
+
+
+function passwordIsStrong(password) {
+    return (
+        password.length >= 8 &&
+        /[A-Z]/.test(password) &&
+        /[a-z]/.test(password) &&
+        /\d/.test(password)
+    );
+}
+
+
+// =========================================================
+// LOGIN
+// POST /users/login
+// =========================================================
 
 const loginForm = document.getElementById("loginForm");
 
-loginForm.addEventListener("submit", function (e) {
-    e.preventDefault();
 
-    const email = document.getElementById("email");
-    const password = document.getElementById("password");
+loginForm?.addEventListener(
+    "submit",
+    async function (event) {
+        event.preventDefault();
 
-    const emailField = document.getElementById("f-email");
-    const passwordField = document.getElementById("f-password");
+        const emailInput =
+            document.getElementById("email");
 
-    const alertBox = document.getElementById("formAlert");
+        const passwordInput =
+            document.getElementById("password");
 
-    let isValid = true;
+        const rememberInput =
+            document.getElementById("remember");
 
-    // Clear previous errors
-    emailField.classList.remove("invalid");
-    passwordField.classList.remove("invalid");
-    alertBox.classList.remove("show");
+        const emailField =
+            document.getElementById("f-email");
 
-    // Email validation
-    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        const passwordField =
+            document.getElementById("f-password");
 
-    if (email.value.trim() === "" || !emailPattern.test(email.value.trim())) {
-        emailField.classList.add("invalid");
-        isValid = false;
+        const alertBox =
+            document.getElementById("formAlert");
+
+        const submitButton =
+            document.getElementById("submitBtn");
+
+        const email = emailInput.value
+            .trim()
+            .toLowerCase();
+
+        const password = passwordInput.value;
+
+        let formIsValid = true;
+
+        emailField.classList.remove("invalid");
+        passwordField.classList.remove("invalid");
+
+        hideAlert(alertBox);
+
+        if (!emailPattern.test(email)) {
+            emailField.classList.add("invalid");
+            formIsValid = false;
+        }
+
+        if (!password) {
+            passwordField.classList.add("invalid");
+            formIsValid = false;
+        }
+
+        if (!formIsValid) {
+            showAlert(
+                alertBox,
+                "Please correct the highlighted fields."
+            );
+
+            return;
+        }
+
+        submitButton.disabled = true;
+        submitButton.textContent = "Logging in...";
+
+        try {
+            const response = await fetch(
+                `${API_BASE_URL}/users/login`,
+                {
+                    method: "POST",
+
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+
+                    body: JSON.stringify({
+                        email: email,
+                        password: password,
+                    }),
+                }
+            );
+
+            let responseData = null;
+
+            try {
+                responseData = await response.json();
+            } catch (error) {
+                responseData = null;
+            }
+
+            if (!response.ok) {
+                throw new Error(
+                    getApiErrorMessage(
+                        responseData,
+                        "Login failed. Please try again."
+                    )
+                );
+            }
+
+            if (!responseData || !responseData.user) {
+                throw new Error(
+                    "The backend returned an invalid login response."
+                );
+            }
+
+            saveSession(
+                responseData.user,
+                Boolean(rememberInput.checked)
+            );
+
+            showAlert(
+                alertBox,
+                "Login successful. Opening the board...",
+                true
+            );
+
+            setTimeout(function () {
+                window.location.href =
+                    "Homepage.html";
+            }, 500);
+
+        } catch (error) {
+            if (error instanceof TypeError) {
+                showAlert(
+                    alertBox,
+                    "Cannot connect to the backend. Make sure FastAPI is running at http://127.0.0.1:8000."
+                );
+            } else {
+                showAlert(
+                    alertBox,
+                    error.message
+                );
+            }
+
+        } finally {
+            submitButton.disabled = false;
+            submitButton.textContent = "Log in";
+        }
     }
+);
 
-    // Password validation
-    if (password.value.trim() === "") {
-        passwordField.classList.add("invalid");
-        isValid = false;
+
+// =========================================================
+// REGISTER
+// POST /users/register
+// =========================================================
+
+const registerForm =
+    document.getElementById("registerForm");
+
+
+registerForm?.addEventListener(
+    "submit",
+    async function (event) {
+        event.preventDefault();
+
+        const nameInput =
+            document.getElementById("regName");
+
+        const emailInput =
+            document.getElementById("regEmail");
+
+        const passwordInput =
+            document.getElementById("regPassword");
+
+        const confirmPasswordInput =
+            document.getElementById("regConfirm");
+
+        const nameField =
+            document.getElementById("r-name");
+
+        const emailField =
+            document.getElementById("r-email");
+
+        const passwordField =
+            document.getElementById("r-password");
+
+        const confirmField =
+            document.getElementById("r-confirm");
+
+        const alertBox =
+            document.getElementById("registerAlert");
+
+        const registerButton =
+            document.getElementById("registerBtn");
+
+        const name = nameInput.value.trim();
+
+        const email = emailInput.value
+            .trim()
+            .toLowerCase();
+
+        const password = passwordInput.value;
+        const confirmPassword =
+            confirmPasswordInput.value;
+
+        let formIsValid = true;
+
+        [
+            nameField,
+            emailField,
+            passwordField,
+            confirmField,
+        ].forEach(function (field) {
+            field.classList.remove("invalid");
+        });
+
+        hideAlert(alertBox);
+
+        if (name.length < 2) {
+            nameField.classList.add("invalid");
+            formIsValid = false;
+        }
+
+        if (!emailPattern.test(email)) {
+            emailField.classList.add("invalid");
+            formIsValid = false;
+        }
+
+        if (!passwordIsStrong(password)) {
+            passwordField.classList.add("invalid");
+
+            const passwordError =
+                passwordField.querySelector(
+                    ".field-error"
+                );
+
+            if (passwordError) {
+                passwordError.textContent =
+                    "Use at least 8 characters with uppercase, lowercase and a number.";
+            }
+
+            formIsValid = false;
+        }
+
+        if (
+            !confirmPassword ||
+            confirmPassword !== password
+        ) {
+            confirmField.classList.add("invalid");
+            formIsValid = false;
+        }
+
+        if (!formIsValid) {
+            showAlert(
+                alertBox,
+                "Please correct the highlighted fields."
+            );
+
+            return;
+        }
+
+        registerButton.disabled = true;
+        registerButton.textContent =
+            "Creating account...";
+
+        try {
+            const response = await fetch(
+                `${API_BASE_URL}/users/register`,
+                {
+                    method: "POST",
+
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+
+                    body: JSON.stringify({
+                        name: name,
+                        email: email,
+                        password: password,
+                        phone: null,
+                    }),
+                }
+            );
+
+            let responseData = null;
+
+            try {
+                responseData = await response.json();
+            } catch (error) {
+                responseData = null;
+            }
+
+            if (!response.ok) {
+                throw new Error(
+                    getApiErrorMessage(
+                        responseData,
+                        "Registration failed. Please try again."
+                    )
+                );
+            }
+
+            if (!responseData || !responseData.user) {
+                throw new Error(
+                    "The backend returned an invalid registration response."
+                );
+            }
+
+            showAlert(
+                alertBox,
+                "Account created successfully. You can now log in.",
+                true
+            );
+
+            registerForm.reset();
+
+            document.getElementById("email").value =
+                email;
+
+            setTimeout(function () {
+                hideAlert(alertBox);
+                openModal(loginModal);
+            }, 900);
+
+        } catch (error) {
+            if (error instanceof TypeError) {
+                showAlert(
+                    alertBox,
+                    "Cannot connect to the backend. Make sure FastAPI is running at http://127.0.0.1:8000."
+                );
+            } else {
+                showAlert(
+                    alertBox,
+                    error.message
+                );
+            }
+
+        } finally {
+            registerButton.disabled = false;
+            registerButton.textContent =
+                "Create Account";
+        }
     }
-
-    if (!isValid) {
-        alertBox.textContent = "Please correct the highlighted fields.";
-        alertBox.classList.add("show");
-        return;
-    }
-
-    // Continue with your login API request here
-    console.log("Login form is valid");
-});
-
-const registerForm = document.getElementById("registerForm");
-
-registerForm.addEventListener("submit", function (e) {
-    e.preventDefault();
-
-    const name = document.getElementById("regName");
-    const email = document.getElementById("regEmail");
-    const password = document.getElementById("regPassword");
-    const confirmPassword = document.getElementById("regConfirm");
-
-    const nameField = document.getElementById("r-name");
-    const emailField = document.getElementById("r-email");
-    const passwordField = document.getElementById("r-password");
-    const confirmField = document.getElementById("r-confirm");
-
-    const alertBox = document.getElementById("registerAlert");
-
-    let isValid = true;
-
-    // Clear previous errors
-    [nameField, emailField, passwordField, confirmField]
-        .forEach(field => field.classList.remove("invalid"));
-
-    alertBox.classList.remove("show");
-
-    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-    // Name validation
-    if (name.value.trim() === "") {
-        nameField.classList.add("invalid");
-        isValid = false;
-    }
-
-    // Email validation
-    if (!emailPattern.test(email.value.trim())) {
-        emailField.classList.add("invalid");
-        isValid = false;
-    }
-
-    // Password validation
-    if (password.value.length < 8) {
-        passwordField.classList.add("invalid");
-        isValid = false;
-    }
-
-    // Confirm password validation
-    if (
-        confirmPassword.value === "" ||
-        confirmPassword.value !== password.value
-    ) {
-        confirmField.classList.add("invalid");
-        isValid = false;
-    }
-
-    if (!isValid) {
-        alertBox.textContent = "Please correct the highlighted fields.";
-        alertBox.classList.add("show");
-        return;
-    }
-
-    // Continue with your registration API request here
-    console.log("Registration form is valid");
-});
+);
 </script>
 </body>
 </html>

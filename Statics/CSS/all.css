@@ -270,3 +270,21 @@ nav{
         text-align:center;
     }
 }
+
+.current-user-name {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    background-color: #faf6ea;
+    color: var(--ink);
+
+    border: none;
+    cursor: default;
+
+    max-width: 180px;
+
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
